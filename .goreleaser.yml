@@ -1,0 +1,25 @@
+before:
+  hooks:
+    - go mod download
+    - go generate ./...
+builds:
+  - env:
+      - CGO_ENABLED=0
+      - GO111MODULE=on
+    goos:
+      - linux
+    goarch:
+      - amd64
+nfpm:
+  formats:
+    - deb
+  homepage: "https://github.com/retailnext/cassandrabackup"
+  license: "Apache 2.0"
+checksum:
+  name_template: 'checksums.txt'
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
