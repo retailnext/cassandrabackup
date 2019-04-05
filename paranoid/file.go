@@ -47,6 +47,23 @@ func (f File) Len() int64 {
 	return f.fingerprint.size
 }
 
+// Remove a file only if it matches.
+// Returns a non-nil error if the file exits and doesn't match, or if os.Remove fails for a non-NotExist reason.
+func (f File) Delete() error {
+	err := f.Check()
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	err = os.Remove(f.name)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
+}
+
 func (f File) Check() error {
 	info, err := os.Stat(f.name)
 	if err != nil {

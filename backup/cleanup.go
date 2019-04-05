@@ -16,14 +16,15 @@ package backup
 
 import (
 	"cassandrabackup/nodetool"
-	"os"
+	"cassandrabackup/paranoid"
 
 	"go.uber.org/zap"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 type cleanupHandler interface {
-	MarkUploadSuccess(path string)
-	MarkUploadFailure(path string)
+	MarkUploadSuccess(ref paranoid.File)
+	MarkUploadFailure(ref paranoid.File)
 	MarkProspectFailure()
 	MarkManifestUploadFailure()
 	MarkManifestUploadSuccess()
@@ -31,47 +32,14 @@ type cleanupHandler interface {
 	Execute() error
 }
 
-type dummyCleanupHandler struct {
-	sawUploadSuccess      bool
-	sawUploadFailure      bool
-	sawProspectFailure    bool
-	manifestUploadFailure bool
-	manifestUploadSuccess bool
-}
-
-func (ch *dummyCleanupHandler) MarkUploadSuccess(path string) {
-	ch.sawUploadSuccess = true
-}
-
-func (ch *dummyCleanupHandler) MarkUploadFailure(path string) {
-	ch.sawUploadFailure = true
-}
-
-func (ch *dummyCleanupHandler) MarkProspectFailure() {
-	ch.sawProspectFailure = true
-}
-
-func (ch *dummyCleanupHandler) MarkManifestUploadFailure() {
-	ch.manifestUploadFailure = true
-}
-
-func (ch *dummyCleanupHandler) MarkManifestUploadSuccess() {
-	ch.manifestUploadSuccess = true
-}
-
-func (ch *dummyCleanupHandler) Execute() error {
-	zap.S().Infow("dummy_cleanup_handler", "saw_upload_success", ch.sawUploadSuccess, "saw_upload_failure", ch.sawUploadFailure, "saw_prospect_failure", ch.sawProspectFailure, "manifest_upload_ok", ch.manifestUploadSuccess, "manifest_upload_err", ch.manifestUploadFailure)
-	return nil
-}
-
 type snapshotCleanupHandler struct {
 	name string
 }
 
-func (ch *snapshotCleanupHandler) MarkUploadSuccess(path string) {
+func (ch *snapshotCleanupHandler) MarkUploadSuccess(ref paranoid.File) {
 }
 
-func (ch *snapshotCleanupHandler) MarkUploadFailure(path string) {
+func (ch *snapshotCleanupHandler) MarkUploadFailure(ref paranoid.File) {
 }
 
 func (ch *snapshotCleanupHandler) MarkProspectFailure() {
@@ -88,21 +56,18 @@ func (ch *snapshotCleanupHandler) Execute() error {
 }
 
 type incrementalCleanupHandler struct {
-	uploadedFiles            map[string]struct{}
+	uploadedFiles            []paranoid.File
 	sawProspectFailure       bool
 	sawUploadFailure         bool
 	sawManifestUploadFailure bool
 	manifestUploadOK         bool
 }
 
-func (ch *incrementalCleanupHandler) MarkUploadSuccess(path string) {
-	if ch.uploadedFiles == nil {
-		ch.uploadedFiles = make(map[string]struct{})
-	}
-	ch.uploadedFiles[path] = struct{}{}
+func (ch *incrementalCleanupHandler) MarkUploadSuccess(ref paranoid.File) {
+	ch.uploadedFiles = append(ch.uploadedFiles, ref)
 }
 
-func (ch *incrementalCleanupHandler) MarkUploadFailure(path string) {
+func (ch *incrementalCleanupHandler) MarkUploadFailure(ref paranoid.File) {
 	ch.sawUploadFailure = true
 }
 
@@ -121,33 +86,36 @@ func (ch *incrementalCleanupHandler) MarkManifestUploadSuccess() {
 func (ch *incrementalCleanupHandler) Execute() error {
 	lgr := zap.S()
 	if ch.sawProspectFailure {
-		lgr.Warnw("skipping_incremental_cleanup", "reason", "prospect_failure")
+		lgr.Infow("skipping_incremental_cleanup", "reason", "prospect_failure")
 		return nil
 	}
 	if ch.sawUploadFailure {
-		lgr.Warnw("skipping_incremental_cleanup", "reason", "upload_failure")
+		lgr.Infow("skipping_incremental_cleanup", "reason", "upload_failure")
 		return nil
 	}
 	if ch.sawManifestUploadFailure {
-		lgr.Warnw("skipping_incremental_cleanup", "reason", "manifest_upload_failure")
+		lgr.Infow("skipping_incremental_cleanup", "reason", "manifest_upload_failure")
 		return nil
 	}
 	if !ch.manifestUploadOK {
-		lgr.Warnw("skipping_incremental_cleanup", "reason", "manifest_not_uploaded")
+		lgr.Infow("skipping_incremental_cleanup", "reason", "manifest_not_uploaded")
+		return nil
+	}
+	if cleanIncremental == nil || !*cleanIncremental {
+		lgr.Infow("skipping_incremental_cleanup", "reason", "not_enabled", "would_delete", len(ch.uploadedFiles))
 		return nil
 	}
 
 	var lastErr error
-	for name := range ch.uploadedFiles {
-		err := os.Remove(name)
-		if err != nil {
-			if os.IsNotExist(err) {
-				lgr.Warnw("file_disappeared", "name", name)
-			} else {
-				lgr.Errorw("cleanup_failed_to_remove_file", "name", name, "err", err)
-				lastErr = err
-			}
+	for _, ref := range ch.uploadedFiles {
+		if err := ref.Delete(); err != nil {
+			lgr.Errorw("cleanup_failed_to_remove_file", "name", ref.Name(), "err", err)
+			lastErr = err
+		} else {
+			lgr.Debugw("cleanup_removed_file", "name", ref.Name())
 		}
 	}
 	return lastErr
 }
+
+var cleanIncremental = kingpin.Flag("backup.clean.incremental", "Remove incremental backups that have been uploaded").Bool()
