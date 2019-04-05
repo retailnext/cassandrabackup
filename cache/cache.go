@@ -19,7 +19,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"os"
+	"path/filepath"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -45,11 +47,50 @@ func Open(path string, mode os.FileMode) (*Storage, error) {
 	if err != nil {
 		return nil, err
 	}
+	ensureFileOwnership(path)
 	s := &Storage{
 		db:           db,
 		bucketPeriod: 1 << 20, // ~12 days
 	}
 	return s, nil
+}
+
+// ensureFileOwnership keeps the database owned by the same uid/gid as the containing directory.
+// Without this, running the tool as root to restore can make the cache db unusable by the user it normally runs as.
+func ensureFileOwnership(path string) {
+	if os.Geteuid() != 0 {
+		return
+	}
+	lgr := zap.S()
+	dbInfo, err := os.Stat(path)
+	if err != nil {
+		lgr.Errorw("cache_db_stat_error", "err", err)
+		return
+	}
+	parent := filepath.Dir(path)
+	parentInfo, err := os.Stat(parent)
+	if err != nil {
+		lgr.Errorw("cache_db_stat_error", "err", err)
+		return
+	}
+	dbStat, ok := dbInfo.Sys().(*syscall.Stat_t)
+	if !ok {
+		lgr.Warnw("cache_db_stat_unsupported")
+		return
+	}
+	parentStat, ok := parentInfo.Sys().(*syscall.Stat_t)
+	if !ok {
+		lgr.Warnw("cache_db_stat_unsupported")
+		return
+	}
+	if dbStat.Uid != parentStat.Uid || dbStat.Gid != parentStat.Gid {
+		err = os.Chown(path, int(parentStat.Uid), int(parentStat.Gid))
+		if err != nil {
+			lgr.Errorw("cache_db_chown_error", "err", err)
+		} else {
+			lgr.Infow("cache_db_chown_ok", "uid", parentStat.Uid, "gid", parentStat.Gid)
+		}
+	}
 }
 
 func OpenShared() {
