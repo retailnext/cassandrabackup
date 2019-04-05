@@ -23,7 +23,7 @@ import (
 	"context"
 )
 
-func DoIncremental(ctx context.Context, deleteIfSuccessful bool, cluster string) error {
+func DoIncremental(ctx context.Context, cluster string) error {
 	identity, manifest, err := systemlocal.GetIdentityAndSkeletonManifest(cluster, false)
 	if err != nil {
 		return err
@@ -44,12 +44,8 @@ func DoIncremental(ctx context.Context, deleteIfSuccessful bool, cluster string)
 
 		identity:       identity,
 		manifest:       manifest,
-		cleanupHandler: &dummyCleanupHandler{},
+		cleanupHandler: &incrementalCleanupHandler{},
 		pathProcessor:  incrementalPathProcessor{},
-	}
-
-	if deleteIfSuccessful {
-		pr.cleanupHandler = &incrementalCleanupHandler{}
 	}
 
 	go pr.prospect()

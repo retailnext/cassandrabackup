@@ -49,7 +49,7 @@ func (p *processor) finish() error {
 			continue
 		}
 		if record.UploadError != nil && record.UploadError != bucket.UploadSkipped {
-			p.cleanupHandler.MarkUploadFailure(record.File.Name())
+			p.cleanupHandler.MarkUploadFailure(record.File)
 			lgr.Errorw("upload_error", "path", record.File.Name(), "err", record.UploadError)
 			hadFailures = true
 			if uploadError == nil {
@@ -66,7 +66,7 @@ func (p *processor) finish() error {
 			lgr.Panicw("duplicate_manifest_path", "record", record)
 		}
 		p.manifest.DataFiles[record.ManifestPath] = record.Digests.ForRestore()
-		p.cleanupHandler.MarkUploadSuccess(record.File.Name())
+		p.cleanupHandler.MarkUploadSuccess(record.File)
 	}
 
 	if hadFailures {

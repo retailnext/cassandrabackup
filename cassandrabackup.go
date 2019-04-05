@@ -111,13 +111,11 @@ var (
 	snapshotCmd        = kingpin.Command("snapshot", "Make a snapshot backup")
 	snapshotCmdCluster = snapshotCmd.Flag("backup.cluster", "Cluster name to back up as").Required().String()
 
-	incrementalCmd                  = kingpin.Command("incremental", "Back up incremental sstables")
-	incrementalCmdCluster           = incrementalCmd.Flag("backup.cluster", "Cluster name to back up as").Required().String()
-	incrementalCmdCleanIfSuccessful = incrementalCmd.Flag("backup.clean", "Remove incremental backup files that have been backed up").Bool()
+	incrementalCmd        = kingpin.Command("incremental", "Back up incremental sstables")
+	incrementalCmdCluster = incrementalCmd.Flag("backup.cluster", "Cluster name to back up as").Required().String()
 
-	runCmd                  = kingpin.Command("run", "Run as a daemon to back up periodically")
-	runCmdCluster           = runCmd.Flag("backup.cluster", "Cluster name to back up as").Required().String()
-	runCmdCleanIfSuccessful = runCmd.Flag("backup.clean", "Remove incremental backup files that have been backed up").Bool()
+	runCmd        = kingpin.Command("run", "Run as a daemon to back up periodically")
+	runCmdCluster = runCmd.Flag("backup.cluster", "Cluster name to back up as").Required().String()
 
 	restoreCmd                  = kingpin.Command("restore", "Restore from backup")
 	restoreCmdDryRun            = restoreCmd.Flag("restore.dry-run", "Don't actually download files").Bool()
@@ -169,7 +167,7 @@ func main() {
 			lgr.Fatalw("backup_error", "err", err)
 		}
 	case "incremental":
-		err := backup.DoIncremental(ctx, *incrementalCmdCleanIfSuccessful, *incrementalCmdCluster)
+		err := backup.DoIncremental(ctx, *incrementalCmdCluster)
 		if err == context.Canceled {
 			return
 		}
@@ -185,7 +183,7 @@ func main() {
 			lgr.Fatalw("restore_error", "err", err)
 		}
 	case "run":
-		err := periodic.Main(ctx, *runCmdCluster, *runCmdCleanIfSuccessful)
+		err := periodic.Main(ctx, *runCmdCluster)
 		if err == context.Canceled {
 			return
 		}
