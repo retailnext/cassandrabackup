@@ -1,7 +1,10 @@
 ---
 language: go
-go:
-  - "1.12.x"
+go: "1.12.x"
+cache:
+  directories:
+    - $HOME/.cache/go-build
+    - $HOME/gopath/pkg/mod
 env:
   global:
     - CGO_ENABLED=0
