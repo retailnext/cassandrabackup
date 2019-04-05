@@ -9,7 +9,9 @@ env:
   global:
     - CGO_ENABLED=0
     - GO111MODULE=on
-install: "go mod download"
+install:
+  - go mod download
+  - go mod verify
 deploy:
   - provider: script
     skip_cleanup: true

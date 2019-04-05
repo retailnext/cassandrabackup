@@ -1,6 +1,7 @@
 before:
   hooks:
     - go mod download
+    - go mod verify
     - go generate ./...
 builds:
   - env:
