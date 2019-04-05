@@ -102,7 +102,12 @@ func (ch *incrementalCleanupHandler) Execute() error {
 		return nil
 	}
 	if cleanIncremental == nil || !*cleanIncremental {
-		lgr.Infow("skipping_incremental_cleanup", "reason", "not_enabled", "would_delete", len(ch.uploadedFiles))
+		lgr.Infow("skipping_incremental_cleanup", "reason", "not_enabled", "would_remove", len(ch.uploadedFiles))
+		if cleanIncrementalVerbose != nil && *cleanIncrementalVerbose {
+			for _, ref := range ch.uploadedFiles {
+				lgr.Infow("cleanup_would_have_removed_file", "name", ref.Name())
+			}
+		}
 		return nil
 	}
 
@@ -112,10 +117,15 @@ func (ch *incrementalCleanupHandler) Execute() error {
 			lgr.Errorw("cleanup_failed_to_remove_file", "name", ref.Name(), "err", err)
 			lastErr = err
 		} else {
-			lgr.Debugw("cleanup_removed_file", "name", ref.Name())
+			if cleanIncrementalVerbose != nil && *cleanIncrementalVerbose {
+				lgr.Infow("cleanup_removed_file", "name", ref.Name())
+			}
 		}
 	}
 	return lastErr
 }
 
-var cleanIncremental = kingpin.Flag("backup.clean.incremental", "Remove incremental backups that have been uploaded").Bool()
+var (
+	cleanIncremental        = kingpin.Flag("backup.clean.incremental", "Remove incremental backup files that have been uploaded.").Bool()
+	cleanIncrementalVerbose = kingpin.Flag("backup.clean.incremental.verbose", "Log incremental backup files that are or would be removed.").Bool()
+)
