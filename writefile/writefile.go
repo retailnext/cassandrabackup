@@ -113,7 +113,9 @@ func (c Config) EnsureDirectoryIfNotExist() error {
 
 	// Parent now exists.
 	if err := os.Mkdir(c.Directory, c.getDirectoryMode()); err != nil {
-		return err
+		if !os.IsExist(err) {
+			return err
+		}
 	}
 
 	if c.EnsureDirectoryOwnership {
