@@ -140,46 +140,37 @@ func (s *Storage) Cache(name string) *Cache {
 type WithValueFunc func(value []byte) error
 
 func (c *Cache) Get(key []byte, f WithValueFunc) error {
-	var value []byte
-	var promotionNeeded bool
+	var valueToPromote []byte
 	viewErr := c.storage.db.View(func(tx *bbolt.Tx) error {
 		currentTop, previousTop := c.storage.currentAndPreviousTopBuckets()
 		if topBucket := tx.Bucket(currentTop); topBucket != nil {
 			if bucket := topBucket.Bucket(c.name); bucket != nil {
-				if maybeValue := bucket.Get(key); maybeValue != nil {
-					value = maybeValue
-					return nil
+				if value := bucket.Get(key); value != nil {
+					return f(value)
 				}
 			}
 		}
 		if topBucket := tx.Bucket(previousTop); topBucket != nil {
 			if bucket := topBucket.Bucket(c.name); bucket != nil {
-				if maybeValue := bucket.Get(key); maybeValue != nil {
-					value = maybeValue
-					promotionNeeded = true
-					return nil
+				if value := bucket.Get(key); value != nil {
+					valueToPromote = make([]byte, len(value))
+					copy(valueToPromote, value)
+					return f(value)
 				}
 			}
 		}
-		return nil
+		return NotFound
 	})
 	if viewErr != nil {
+		c.misses.Inc()
 		return viewErr
 	}
-	if value == nil {
-		c.misses.Inc()
-		return NotFound
-	}
-	if fErr := f(value); fErr != nil {
-		c.misses.Inc()
-		return fErr
-	}
 	c.hits.Inc()
-	if !promotionNeeded {
+	if valueToPromote == nil {
 		return nil
 	}
 	c.promotions.Inc()
-	return c.put(key, value)
+	return c.put(key, valueToPromote)
 }
 
 func (c *Cache) Put(key, value []byte) error {
