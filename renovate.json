@@ -3,5 +3,8 @@
     "config:base",
     ":automergeAll",
     ":gitSignOff"
+  ],
+  "postUpdateOptions": [
+    "gomodTidy"
   ]
 }
