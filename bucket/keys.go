@@ -20,6 +20,9 @@ import (
 	"cassandrabackup/unixtime"
 	"encoding/base64"
 	"fmt"
+	"strings"
+
+	"github.com/aws/aws-sdk-go/service/s3"
 )
 
 func (c *Client) keyWithPrefix(key string) string {
@@ -34,17 +37,57 @@ func (c *Client) absoluteKeyForBlob(digests digest.ForRestore) string {
 	return c.keyWithPrefix(fmt.Sprintf("files/blake2b/%s/%s/%s", encoded[0:1], encoded[1:2], encoded[2:]))
 }
 
+func (c *Client) absolteKeyPrefixForClusters() string {
+	return c.keyWithPrefix("manifests/")
+}
+
+func (c *Client) absoluteKeyPrefixForClusterHosts(cluster string) string {
+	if cluster == "" {
+		panic("empty cluster")
+	}
+	urlCluster := base64.URLEncoding.EncodeToString([]byte(cluster))
+	clustersPrefix := c.absolteKeyPrefixForClusters()
+	return fmt.Sprintf("%s%s/", clustersPrefix, urlCluster)
+}
+
+func (c *Client) decodeClusterHosts(prefixes []*s3.CommonPrefix) ([]manifests.NodeIdentity, []string) {
+	result := make([]manifests.NodeIdentity, 0, len(prefixes))
+	var bonus []string
+	skip := len(c.absolteKeyPrefixForClusters())
+	for _, obj := range prefixes {
+		raw := *obj.Prefix
+		trimmed := raw[skip:]
+		parts := strings.Split(trimmed, "/")
+		if len(parts) != 3 {
+			bonus = append(bonus, raw)
+			continue
+		}
+		cluster, err := base64.URLEncoding.DecodeString(parts[0])
+		if err != nil {
+			bonus = append(bonus, raw)
+			continue
+		}
+		hostname, err := base64.URLEncoding.DecodeString(parts[1])
+		if err != nil {
+			bonus = append(bonus, raw)
+			continue
+		}
+		ni := manifests.NodeIdentity{
+			Cluster:  string(cluster),
+			Hostname: string(hostname),
+		}
+		result = append(result, ni)
+	}
+	return result, bonus
+}
+
 func (c *Client) absoluteKeyPrefixForManifests(identity manifests.NodeIdentity) string {
 	if identity.Hostname == "" {
 		panic("empty Hostname")
 	}
-	if identity.Cluster == "" {
-		panic("empty cluster")
-	}
-	urlCluster := base64.URLEncoding.EncodeToString([]byte(identity.Cluster))
+	clusterPrefix := c.absoluteKeyPrefixForClusterHosts(identity.Cluster)
 	urlHostname := base64.URLEncoding.EncodeToString([]byte(identity.Hostname))
-	relative := fmt.Sprintf("manifests/%s/%s/", urlCluster, urlHostname)
-	return c.keyWithPrefix(relative)
+	return fmt.Sprintf("%s%s/", clusterPrefix, urlHostname)
 }
 
 func (c *Client) absoluteKeyForManifestTimeRange(identity manifests.NodeIdentity, boundary unixtime.Seconds) string {

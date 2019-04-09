@@ -108,30 +108,16 @@ var (
 	metricsListenAddress = kingpin.Flag("web.listen-address", "Address on which to expose metrics.").String()
 	metricsPath          = kingpin.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
 
-	snapshotCmd        = kingpin.Command("snapshot", "Make a snapshot backup")
-	snapshotCmdCluster = snapshotCmd.Flag("backup.cluster", "Cluster name to back up as").Required().String()
+	listCmd = kingpin.Command("list", "")
 
-	incrementalCmd        = kingpin.Command("incremental", "Back up incremental sstables")
-	incrementalCmdCluster = incrementalCmd.Flag("backup.cluster", "Cluster name to back up as").Required().String()
+	listManifestsCmd          = listCmd.Command("manifests", "List manifests for a host")
+	listManifestsCmdCluster   = listManifestsCmd.Flag("cluster", "Cluster name to restore from").Required().String()
+	listManifestsCmdHostname  = listManifestsCmd.Flag("hostname", "Hostname to restore from").Required().String()
+	listManifestsCmdNotBefore = listManifestsCmd.Flag("not-before", "Ignore manifests before this time (unix seconds)").Int64()
+	listManifestsCmdNotAfter  = listManifestsCmd.Flag("not-after", "Ignore manifests after this time (unix seconds)").Int64()
 
-	runCmd        = kingpin.Command("run", "Run as a daemon to back up periodically")
-	runCmdCluster = runCmd.Flag("backup.cluster", "Cluster name to back up as").Required().String()
-
-	restoreCmd                  = kingpin.Command("restore", "Restore from backup")
-	restoreCmdDryRun            = restoreCmd.Flag("restore.dry-run", "Don't actually download files").Bool()
-	restoreCmdAllowChangedFiles = restoreCmd.Flag("restore.allow-changed", "Allow restoration of files that changed between manifests").Bool()
-	restoreCmdCluster           = restoreCmd.Flag("restore.cluster", "Cluster name to restore from").Required().String()
-	restoreCmdHostname          = restoreCmd.Flag("restore.hostname", "Hostname to restore from").Required().String()
-	restoreCmdNotBefore         = restoreCmd.Flag("restore.not-before", "Ignore manifests before this time (unix seconds)").Int64()
-	restoreCmdNotAfter          = restoreCmd.Flag("restore.not-after", "Ignore manifests after this time (unix seconds)").Int64()
-
-	manifestsCmd = kingpin.Command("manifests", "Manifest operations")
-
-	listManifestsCmd          = manifestsCmd.Command("list", "List manifests for a host")
-	listManifestsCmdCluster   = listManifestsCmd.Flag("restore.cluster", "Cluster name to restore from").Required().String()
-	listManifestsCmdHostname  = listManifestsCmd.Flag("restore.hostname", "Hostname to restore from").Required().String()
-	listManifestsCmdNotBefore = listManifestsCmd.Flag("restore.not-before", "Ignore manifests before this time (unix seconds)").Int64()
-	listManifestsCmdNotAfter  = listManifestsCmd.Flag("restore.not-after", "Ignore manifests after this time (unix seconds)").Int64()
+	listHostsCmd        = listCmd.Command("hosts", "List hosts in a cluster")
+	listHostsCmdCluster = listHostsCmd.Flag("cluster", "Cluster name").Required().String()
 )
 
 func main() {
@@ -149,6 +135,7 @@ func main() {
 	defer stopProfile()
 
 	setupPrometheus()
+
 	defer func() {
 		if cache.Shared != nil {
 			if err := cache.Shared.Close(); err != nil {
@@ -158,16 +145,24 @@ func main() {
 	}()
 
 	switch cmd {
-	case "snapshot":
-		err := backup.DoSnapshotBackup(ctx, *snapshotCmdCluster)
+	case "backup snapshot":
+		err := backup.DoSnapshotBackup(ctx)
 		if err == context.Canceled {
 			return
 		}
 		if err != nil {
 			lgr.Fatalw("backup_error", "err", err)
 		}
-	case "incremental":
-		err := backup.DoIncremental(ctx, *incrementalCmdCluster)
+	case "backup incremental":
+		err := backup.DoIncremental(ctx)
+		if err == context.Canceled {
+			return
+		}
+		if err != nil {
+			lgr.Fatalw("backup_error", "err", err)
+		}
+	case "backup run":
+		err := periodic.Main(ctx)
 		if err == context.Canceled {
 			return
 		}
@@ -175,28 +170,20 @@ func main() {
 			lgr.Fatalw("backup_error", "err", err)
 		}
 	case "restore":
-		err := restore.Main(ctx, *restoreCmdCluster, *restoreCmdHostname, *restoreCmdDryRun, *restoreCmdAllowChangedFiles, *restoreCmdNotBefore, *restoreCmdNotAfter)
+		err := restore.Main(ctx)
 		if err == context.Canceled {
 			return
 		}
 		if err != nil {
 			lgr.Fatalw("restore_error", "err", err)
 		}
-	case "run":
-		err := periodic.Main(ctx, *runCmdCluster)
-		if err == context.Canceled {
-			return
-		}
-		if err != nil {
-			lgr.Fatalw("backup_error", "err", err)
-		}
-	case "manifests list":
+	case "list manifests":
 		lgr := zap.S()
 		identity := manifests.NodeIdentity{
 			Cluster:  *listManifestsCmdCluster,
 			Hostname: *listManifestsCmdHostname,
 		}
-		bkt := bucket.NewClient()
+		bkt := bucket.OpenShared()
 		manifestKeys, err := bkt.ListManifests(ctx, identity, unixtime.Seconds(*listManifestsCmdNotBefore), unixtime.Seconds(*listManifestsCmdNotAfter))
 		if err != nil {
 			lgr.Fatalw("list_manifests_error", "err", err)
@@ -204,5 +191,17 @@ func main() {
 		for _, mk := range manifestKeys {
 			lgr.Infow("got_manifest", "manifest", mk)
 		}
+	case "list hosts":
+		lgr := zap.S()
+		bkt := bucket.OpenShared()
+		results, err := bkt.ListHostNames(ctx, *listHostsCmdCluster)
+		if err != nil {
+			lgr.Fatalw("list_hosts_error", "err", err)
+		}
+		for _, ni := range results {
+			lgr.Infow("got_host", "identity", ni)
+		}
+	default:
+		lgr.Fatalw("unhandled_command", "cmd", cmd)
 	}
 }

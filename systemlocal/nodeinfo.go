@@ -14,7 +14,11 @@
 
 package systemlocal
 
-import "github.com/gocql/gocql"
+import (
+	"sort"
+
+	"github.com/gocql/gocql"
+)
 
 type NodeInfo struct {
 	BootstrapState string
@@ -42,6 +46,7 @@ func GetNodeInfo(addr string) (NodeInfo, error) {
 
 	q := session.Query(`SELECT bootstrapped, cluster_name, data_center, host_id, partitioner, rack, tokens FROM system.local`)
 	err = q.Scan(&result.BootstrapState, &result.ClusterName, &result.DataCenter, &result.HostID, &result.Partitioner, &result.Rack, &result.Tokens)
+	sort.Strings(result.Tokens)
 
 	return result, err
 }

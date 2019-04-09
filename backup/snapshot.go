@@ -18,33 +18,30 @@ import (
 	"cassandrabackup/bucket"
 	"cassandrabackup/digest"
 	"cassandrabackup/manifests"
+	"cassandrabackup/nodeidentity"
 	"cassandrabackup/nodetool"
-	"cassandrabackup/systemlocal"
-	"cassandrabackup/unixtime"
 	"context"
 	"fmt"
 )
 
-func DoSnapshotBackup(ctx context.Context, cluster string) error {
-	identity, manifest, err := systemlocal.GetIdentityAndSkeletonManifest(cluster, false)
+func DoSnapshotBackup(ctx context.Context) error {
+	identity, manifest, err := nodeidentity.GetIdentityAndManifestTemplate(overrideCluster, overrideHostname)
 	if err != nil {
 		return err
 	}
 
-	now := unixtime.Now()
-	snapshotName := fmt.Sprintf("auto-%s", now.Decimal())
+	snapshotName := fmt.Sprintf("auto-%s", manifest.Time.Decimal())
 	err = nodetool.TakeSnapshot(snapshotName)
 	if err != nil {
 		return err
 	}
 
-	manifest.Time = now
 	manifest.ManifestType = manifests.ManifestTypeSnapshot
 
 	pr := &processor{
 		ctx: ctx,
 
-		bucketClient: bucket.NewClient(),
+		bucketClient: bucket.OpenShared(),
 		digestCache:  digest.OpenShared(),
 
 		prospectedFiles: make(chan fileRecord),

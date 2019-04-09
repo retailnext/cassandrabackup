@@ -18,6 +18,7 @@ import (
 	"cassandrabackup/bucket/safeuploader"
 	"cassandrabackup/cache"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -48,13 +49,25 @@ type Client struct {
 }
 
 var (
-	bucketName             = kingpin.Flag("s3.bucket", "S3 bucket name.").Required().String()
-	bucketRegion           = kingpin.Flag("s3.region", "S3 bucket region.").Required().String()
-	bucketKeyPrefix        = kingpin.Flag("s3.bucket.key-prefix", "Set the prefix for files in the S3 bucket").Default("/").String()
-	bucketBlobStorageClass = kingpin.Flag("s3.bucket.storage-class", "Set the storage class for files in S3").Default(s3.StorageClassStandardIa).String()
+	bucketName             = kingpin.Flag("s3-bucket", "S3 bucket name.").Required().String()
+	bucketRegion           = kingpin.Flag("s3-region", "S3 bucket region.").Envar("AWS_REGION").Required().String()
+	bucketKeyPrefix        = kingpin.Flag("s3-key-prefix", "Set the prefix for files in the S3 bucket").Default("/").String()
+	bucketBlobStorageClass = kingpin.Flag("s3-storage-class", "Set the storage class for files in S3").Default(s3.StorageClassStandardIa).String()
 )
 
-func NewClient() *Client {
+var (
+	Shared *Client
+	once   sync.Once
+)
+
+func OpenShared() *Client {
+	once.Do(func() {
+		Shared = newClient()
+	})
+	return Shared
+}
+
+func newClient() *Client {
 	cache.OpenShared()
 
 	awsConf := aws.NewConfig().WithRegion(*bucketRegion)
