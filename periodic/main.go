@@ -25,7 +25,7 @@ import (
 const snapshotEvery = 1 * time.Hour
 const incrementalEvery = 5 * time.Minute
 
-func Main(ctx context.Context, cluster string) error {
+func Main(ctx context.Context) error {
 	registerMetrics()
 	lgr := zap.S()
 
@@ -49,7 +49,7 @@ DONE:
 		if lastIncrementalAt.Before(now.Add(-incrementalEvery)) {
 			backupInProgressGauges.WithLabelValues("incremental").Set(1)
 			lgr.Infow("starting_backup", "type", "incremental")
-			err = backup.DoIncremental(ctx, cluster)
+			err = backup.DoIncremental(ctx)
 			backupInProgressGauges.WithLabelValues("incremental").Set(0)
 			now = time.Now()
 			if err == nil {
@@ -67,7 +67,7 @@ DONE:
 		} else if lastSnapshotAt.Before(now.Add(-snapshotEvery)) {
 			backupInProgressGauges.WithLabelValues("snapshot").Set(1)
 			lgr.Infow("starting_backup", "type", "snapshot")
-			err = backup.DoSnapshotBackup(ctx, cluster)
+			err = backup.DoSnapshotBackup(ctx)
 			backupInProgressGauges.WithLabelValues("snapshot").Set(0)
 			now = time.Now()
 			if err == nil {

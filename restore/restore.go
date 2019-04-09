@@ -63,7 +63,7 @@ func newWorker(identity manifests.NodeIdentity) *worker {
 	return &worker{
 		identity: identity,
 		cache:    digest.OpenShared(),
-		client:   bucket.NewClient(),
+		client:   bucket.OpenShared(),
 		target: writefile.Config{
 			Directory:                "/var/lib/cassandra/data",
 			DirectoryMode:            0755,

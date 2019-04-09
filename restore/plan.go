@@ -18,6 +18,7 @@ import (
 	"cassandrabackup/bucket"
 	"cassandrabackup/digest"
 	"cassandrabackup/manifests"
+	"cassandrabackup/nodeidentity"
 	"cassandrabackup/unixtime"
 	"context"
 	"errors"
@@ -25,20 +26,15 @@ import (
 	"go.uber.org/zap"
 )
 
-var client *bucket.Client
-
 var NoSnapshotsFound = errors.New("no snapshots found")
 var ChangesDetected = errors.New("file changes detected")
 
-func Main(ctx context.Context, cluster, hostname string, dryRun, allowChangedFiles bool, notBefore, notAfter int64) error {
+func Main(ctx context.Context) error {
 	lgr := zap.S()
 
-	identity := manifests.NodeIdentity{
-		Cluster:  cluster,
-		Hostname: hostname,
-	}
+	identity := nodeidentity.ForRestore(ctx, restoreCluster, restoreHostname, restoreHostnamePattern)
 
-	keys, err := selectManifests(ctx, identity, unixtime.Seconds(notBefore), unixtime.Seconds(notAfter))
+	keys, err := selectManifests(ctx, identity, unixtime.Seconds(*restoreCmdNotBefore), unixtime.Seconds(*restoreCmdNotAfter))
 	if err != nil {
 		return err
 	}
@@ -55,12 +51,12 @@ func Main(ctx context.Context, cluster, hostname string, dryRun, allowChangedFil
 				lgr.Infow("file_changed", "name", name, "digest", entry.file, "manifest", entry.manifest)
 			}
 		}
-		if !allowChangedFiles {
+		if !*restoreCmdAllowChangedFiles {
 			return ChangesDetected
 		}
 	}
 
-	if dryRun {
+	if *restoreCmdDryRun {
 		for name, file := range p.files {
 			lgr.Infow("would_restore", "name", name, "digest", file)
 		}
@@ -72,9 +68,7 @@ func Main(ctx context.Context, cluster, hostname string, dryRun, allowChangedFil
 }
 
 func selectManifests(ctx context.Context, identity manifests.NodeIdentity, startAfter, notAfter unixtime.Seconds) (manifests.ManifestKeys, error) {
-	if client == nil {
-		client = bucket.NewClient()
-	}
+	client := bucket.OpenShared()
 
 	keys, err := client.ListManifests(ctx, identity, startAfter, notAfter)
 	if err != nil {
@@ -95,6 +89,8 @@ func selectManifests(ctx context.Context, identity manifests.NodeIdentity, start
 }
 
 func assemble(ctx context.Context, identity manifests.NodeIdentity, keys manifests.ManifestKeys) (*plan, error) {
+	client := bucket.OpenShared()
+
 	selectedManifests, err := client.GetManifests(ctx, identity, keys)
 	if err != nil {
 		return nil, err

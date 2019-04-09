@@ -28,11 +28,6 @@ const (
 	ManifestTypeIncremental ManifestType = 3
 )
 
-type NodeIdentity struct {
-	Cluster  string
-	Hostname string
-}
-
 //easyjson:json
 type Manifest struct {
 	Time         unixtime.Seconds             `json:"time"`

@@ -18,25 +18,22 @@ import (
 	"cassandrabackup/bucket"
 	"cassandrabackup/digest"
 	"cassandrabackup/manifests"
-	"cassandrabackup/systemlocal"
-	"cassandrabackup/unixtime"
+	"cassandrabackup/nodeidentity"
 	"context"
 )
 
-func DoIncremental(ctx context.Context, cluster string) error {
-	identity, manifest, err := systemlocal.GetIdentityAndSkeletonManifest(cluster, false)
+func DoIncremental(ctx context.Context) error {
+	identity, manifest, err := nodeidentity.GetIdentityAndManifestTemplate(overrideCluster, overrideHostname)
 	if err != nil {
 		return err
 	}
 
-	now := unixtime.Now()
-	manifest.Time = now
 	manifest.ManifestType = manifests.ManifestTypeIncremental
 
 	pr := &processor{
 		ctx: ctx,
 
-		bucketClient: bucket.NewClient(),
+		bucketClient: bucket.OpenShared(),
 		digestCache:  digest.OpenShared(),
 
 		prospectedFiles: make(chan fileRecord, 1),
