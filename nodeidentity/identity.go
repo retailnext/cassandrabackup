@@ -18,6 +18,7 @@ import (
 	"cassandrabackup/cassandraconfig"
 	"cassandrabackup/manifests"
 	"cassandrabackup/systemlocal"
+	"cassandrabackup/unixtime"
 	"os"
 
 	"go.uber.org/zap"
@@ -63,6 +64,7 @@ func GetIdentityAndManifestTemplateOffline(overrideCluster, overrideHostname *st
 	}
 
 	template := manifests.Manifest{
+		Time:        unixtime.Now(),
 		Address:     cfg.IPForClients(),
 		Partitioner: cfg.Partitioner,
 		Tokens:      cfg.Tokens(),
