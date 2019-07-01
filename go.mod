@@ -20,7 +20,7 @@ require (
 	go.uber.org/atomic v1.4.0 // indirect
 	go.uber.org/multierr v1.1.0 // indirect
 	go.uber.org/zap v1.10.0
-	golang.org/x/crypto v0.0.0-20190621232137-cc06ce4a13d4
+	golang.org/x/crypto v0.0.0-20190701095521-4def268fd1a4
 	golang.org/x/net v0.0.0-20190628192646-da137c7871d7 // indirect
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
