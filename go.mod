@@ -12,7 +12,7 @@ require (
 	github.com/mailru/easyjson v0.0.0-20190620131619-da37f6c1e481
 	github.com/pkg/errors v0.8.1 // indirect
 	github.com/prometheus/client_golang v1.0.0
-	github.com/prometheus/procfs v0.0.3 // indirect
+	github.com/prometheus/procfs v0.0.4 // indirect
 	go.etcd.io/bbolt v1.3.3
 	go.uber.org/atomic v1.4.0 // indirect
 	go.uber.org/multierr v1.1.0 // indirect
