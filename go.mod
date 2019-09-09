@@ -1,7 +1,7 @@
 module cassandrabackup
 
 require (
-	github.com/aws/aws-sdk-go v1.23.17
+	github.com/aws/aws-sdk-go v1.23.18
 	github.com/go-test/deep v1.0.3
 	github.com/gocql/gocql v0.0.0-20190829130954-e163eff7a8c6
 	github.com/golang/protobuf v1.3.2 // indirect
