@@ -6,7 +6,7 @@ require (
 	github.com/gocql/gocql v0.0.0-20190910075112-d63913db787c
 	github.com/golang/protobuf v1.3.2 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
-	github.com/mailru/easyjson v0.0.0-20190626092158-b2ccc519800e
+	github.com/mailru/easyjson v0.7.0
 	github.com/pkg/errors v0.8.1 // indirect
 	github.com/prometheus/client_golang v1.0.0
 	github.com/prometheus/procfs v0.0.4 // indirect
