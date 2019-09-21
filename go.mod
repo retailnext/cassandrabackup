@@ -18,7 +18,7 @@ require (
 	go.uber.org/zap v1.10.0
 	golang.org/x/crypto v0.0.0-20190911031432-227b76d455e7
 	golang.org/x/net v0.0.0-20190921015927-1a5e07d1ff72 // indirect
-	golang.org/x/sys v0.0.0-20190921190940-14da1ac737cc // indirect
+	golang.org/x/sys v0.0.0-20190921204832-2dccfee4fd3e // indirect
 	golang.org/x/text v0.3.2 // indirect
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
