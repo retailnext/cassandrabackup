@@ -17,7 +17,7 @@ require (
 	go.uber.org/multierr v1.1.0 // indirect
 	go.uber.org/zap v1.10.0
 	golang.org/x/crypto v0.0.0-20190923035154-9ee001bba392
-	golang.org/x/net v0.0.0-20190921015927-1a5e07d1ff72 // indirect
+	golang.org/x/net v0.0.0-20190923162816-aa69164e4478 // indirect
 	golang.org/x/text v0.3.2 // indirect
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
