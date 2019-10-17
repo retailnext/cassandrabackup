@@ -2,7 +2,7 @@ module cassandrabackup
 
 require (
 	github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d // indirect
-	github.com/aws/aws-sdk-go v1.25.14
+	github.com/aws/aws-sdk-go v1.25.15
 	github.com/go-test/deep v1.0.4
 	github.com/gocql/gocql v0.0.0-20191015152034-2274c8a9fab6
 	github.com/golang/snappy v0.0.1 // indirect
