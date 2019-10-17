@@ -8,7 +8,7 @@ require (
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/google/go-cmp v0.3.1 // indirect
 	github.com/mailru/easyjson v0.7.0
-	github.com/prometheus/client_golang v1.2.0
+	github.com/prometheus/client_golang v1.2.1
 	go.etcd.io/bbolt v1.3.3
 	go.uber.org/atomic v1.4.0 // indirect
 	go.uber.org/multierr v1.2.0 // indirect
