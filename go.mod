@@ -11,7 +11,7 @@ require (
 	github.com/prometheus/client_golang v1.2.1
 	go.etcd.io/bbolt v1.3.3
 	go.uber.org/zap v1.13.0
-	golang.org/x/crypto v0.0.0-20191112222119-e1110fd1c708
+	golang.org/x/crypto v0.0.0-20191117063200-497ca9f6d64f
 	golang.org/x/net v0.0.0-20191011234655-491137f69257 // indirect
 	golang.org/x/text v0.3.2 // indirect
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
