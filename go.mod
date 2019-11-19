@@ -20,7 +20,7 @@ require (
 	golang.org/x/tools v0.0.0-20191118211312-13f8be5f577f // indirect
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
-	gopkg.in/yaml.v2 v2.2.5
+	gopkg.in/yaml.v2 v2.2.6
 )
 
 go 1.13
