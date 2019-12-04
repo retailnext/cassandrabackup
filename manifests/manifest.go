@@ -15,8 +15,8 @@
 package manifests
 
 import (
-	"cassandrabackup/digest"
-	"cassandrabackup/unixtime"
+	"github.com/retailnext/cassandrabackup/digest"
+	"github.com/retailnext/cassandrabackup/unixtime"
 )
 
 type ManifestType int

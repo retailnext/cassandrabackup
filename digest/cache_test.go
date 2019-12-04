@@ -15,13 +15,14 @@
 package digest
 
 import (
-	"cassandrabackup/cache"
-	"cassandrabackup/paranoid"
 	"context"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/retailnext/cassandrabackup/cache"
+	"github.com/retailnext/cassandrabackup/paranoid"
 )
 
 func TestCache(t *testing.T) {

@@ -15,12 +15,12 @@
 package bucket
 
 import (
-	"cassandrabackup/cache"
-	"cassandrabackup/digest"
-	"cassandrabackup/unixtime"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/retailnext/cassandrabackup/cache"
+	"github.com/retailnext/cassandrabackup/digest"
+	"github.com/retailnext/cassandrabackup/unixtime"
 	"go.uber.org/zap"
 )
 
@@ -75,14 +75,12 @@ func (e *ExistsCache) Put(restore digest.ForRestore, lockedUntil time.Time) {
 	}
 }
 
-var (
-	existsCacheLockTimeMisses = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "cassandrabackup",
-		Subsystem: "bucket_exists_cache",
-		Name:      "lock_time_misses_total",
-		Help:      "Number of exists cache misses due to expired/future lock time.",
-	})
-)
+var existsCacheLockTimeMisses = prometheus.NewCounter(prometheus.CounterOpts{
+	Namespace: "cassandrabackup",
+	Subsystem: "bucket_exists_cache",
+	Name:      "lock_time_misses_total",
+	Help:      "Number of exists cache misses due to expired/future lock time.",
+})
 
 func init() {
 	prometheus.MustRegister(existsCacheLockTimeMisses)

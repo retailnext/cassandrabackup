@@ -15,9 +15,8 @@
 package backup
 
 import (
-	"cassandrabackup/nodetool"
-	"cassandrabackup/paranoid"
-
+	"github.com/retailnext/cassandrabackup/nodetool"
+	"github.com/retailnext/cassandrabackup/paranoid"
 	"go.uber.org/zap"
 )
 

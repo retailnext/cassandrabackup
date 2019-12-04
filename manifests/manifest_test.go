@@ -15,9 +15,6 @@
 package manifests
 
 import (
-	"cassandrabackup/digest"
-	"cassandrabackup/paranoid"
-	"cassandrabackup/unixtime"
 	"context"
 	"crypto/rand"
 	"io/ioutil"
@@ -26,6 +23,9 @@ import (
 
 	"github.com/go-test/deep"
 	"github.com/mailru/easyjson"
+	"github.com/retailnext/cassandrabackup/digest"
+	"github.com/retailnext/cassandrabackup/paranoid"
+	"github.com/retailnext/cassandrabackup/unixtime"
 )
 
 func TestManifest(t *testing.T) {

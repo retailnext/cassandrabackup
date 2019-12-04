@@ -15,8 +15,6 @@
 package safeuploader
 
 import (
-	"cassandrabackup/digest"
-	"cassandrabackup/paranoid"
 	"context"
 	"fmt"
 	"io"
@@ -27,6 +25,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
+	"github.com/retailnext/cassandrabackup/digest"
+	"github.com/retailnext/cassandrabackup/paranoid"
 	"go.uber.org/zap"
 )
 

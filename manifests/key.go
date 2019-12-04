@@ -15,11 +15,12 @@
 package manifests
 
 import (
-	"cassandrabackup/unixtime"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/retailnext/cassandrabackup/unixtime"
 )
 
 var InvalidManifestKey = errors.New("invalid manifest key")
