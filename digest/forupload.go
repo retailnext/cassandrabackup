@@ -15,13 +15,13 @@
 package digest
 
 import (
-	"cassandrabackup/digest/parts"
-	"cassandrabackup/paranoid"
 	"context"
 	"encoding/base64"
 	"fmt"
 	"io"
 
+	"github.com/retailnext/cassandrabackup/digest/parts"
+	"github.com/retailnext/cassandrabackup/paranoid"
 	"golang.org/x/crypto/blake2b"
 )
 

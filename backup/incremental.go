@@ -15,11 +15,12 @@
 package backup
 
 import (
-	"cassandrabackup/bucket"
-	"cassandrabackup/digest"
-	"cassandrabackup/manifests"
-	"cassandrabackup/nodeidentity"
 	"context"
+
+	"github.com/retailnext/cassandrabackup/bucket"
+	"github.com/retailnext/cassandrabackup/digest"
+	"github.com/retailnext/cassandrabackup/manifests"
+	"github.com/retailnext/cassandrabackup/nodeidentity"
 )
 
 func DoIncremental(ctx context.Context) error {

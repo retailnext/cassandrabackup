@@ -15,8 +15,6 @@
 package bucket
 
 import (
-	"cassandrabackup/bucket/safeuploader"
-	"cassandrabackup/cache"
 	"strings"
 	"sync"
 	"time"
@@ -27,6 +25,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager/s3manageriface"
+	"github.com/retailnext/cassandrabackup/bucket/safeuploader"
+	"github.com/retailnext/cassandrabackup/cache"
 	"go.uber.org/zap"
 	"gopkg.in/alecthomas/kingpin.v2"
 )

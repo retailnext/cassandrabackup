@@ -15,12 +15,12 @@
 package digest
 
 import (
-	"cassandrabackup/cache"
-	"cassandrabackup/paranoid"
 	"context"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/retailnext/cassandrabackup/cache"
+	"github.com/retailnext/cassandrabackup/paranoid"
 )
 
 type Cache struct {

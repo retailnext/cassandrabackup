@@ -15,14 +15,14 @@
 package restore
 
 import (
-	"cassandrabackup/bucket"
-	"cassandrabackup/digest"
-	"cassandrabackup/manifests"
-	"cassandrabackup/nodeidentity"
-	"cassandrabackup/unixtime"
 	"context"
 	"errors"
 
+	"github.com/retailnext/cassandrabackup/bucket"
+	"github.com/retailnext/cassandrabackup/digest"
+	"github.com/retailnext/cassandrabackup/manifests"
+	"github.com/retailnext/cassandrabackup/nodeidentity"
+	"github.com/retailnext/cassandrabackup/unixtime"
 	"go.uber.org/zap"
 )
 
@@ -75,7 +75,7 @@ func selectManifests(ctx context.Context, identity manifests.NodeIdentity, start
 		return nil, err
 	}
 
-	var snapshotIndex = -1
+	snapshotIndex := -1
 	for i := len(keys) - 1; i >= 0; i-- {
 		if keys[i].ManifestType == manifests.ManifestTypeSnapshot {
 			snapshotIndex = i

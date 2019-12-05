@@ -15,11 +15,11 @@
 package cassandraconfig
 
 import (
-	"cassandrabackup/paranoid"
 	"sort"
 	"strings"
 	"sync"
 
+	"github.com/retailnext/cassandrabackup/paranoid"
 	"gopkg.in/yaml.v2"
 )
 

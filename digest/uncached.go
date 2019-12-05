@@ -15,8 +15,9 @@
 package digest
 
 import (
-	"cassandrabackup/paranoid"
 	"context"
+
+	"github.com/retailnext/cassandrabackup/paranoid"
 )
 
 func GetUncached(ctx context.Context, file paranoid.File) (ForUpload, error) {

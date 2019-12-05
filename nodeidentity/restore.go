@@ -15,13 +15,13 @@
 package nodeidentity
 
 import (
-	"cassandrabackup/bucket"
-	"cassandrabackup/cassandraconfig"
-	"cassandrabackup/manifests"
 	"context"
 	"regexp"
 	"strings"
 
+	"github.com/retailnext/cassandrabackup/bucket"
+	"github.com/retailnext/cassandrabackup/cassandraconfig"
+	"github.com/retailnext/cassandrabackup/manifests"
 	"go.uber.org/zap"
 )
 

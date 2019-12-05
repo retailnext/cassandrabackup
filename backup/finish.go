@@ -15,11 +15,11 @@
 package backup
 
 import (
-	"cassandrabackup/bucket"
-	"cassandrabackup/digest"
-	"cassandrabackup/manifests"
 	"context"
 
+	"github.com/retailnext/cassandrabackup/bucket"
+	"github.com/retailnext/cassandrabackup/digest"
+	"github.com/retailnext/cassandrabackup/manifests"
 	"go.uber.org/zap"
 )
 

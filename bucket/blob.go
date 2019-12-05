@@ -15,8 +15,6 @@
 package bucket
 
 import (
-	"cassandrabackup/digest"
-	"cassandrabackup/paranoid"
 	"context"
 	"errors"
 	"io"
@@ -24,6 +22,8 @@ import (
 
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/retailnext/cassandrabackup/digest"
+	"github.com/retailnext/cassandrabackup/paranoid"
 	"go.uber.org/zap"
 )
 

@@ -15,13 +15,13 @@
 package bucket
 
 import (
-	"cassandrabackup/manifests"
-	"cassandrabackup/unixtime"
 	"context"
 	"path/filepath"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/retailnext/cassandrabackup/manifests"
+	"github.com/retailnext/cassandrabackup/unixtime"
 	"go.uber.org/zap"
 )
 

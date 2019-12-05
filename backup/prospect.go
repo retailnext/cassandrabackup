@@ -15,11 +15,11 @@
 package backup
 
 import (
-	"cassandrabackup/paranoid"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/retailnext/cassandrabackup/paranoid"
 	"go.uber.org/zap"
 )
 

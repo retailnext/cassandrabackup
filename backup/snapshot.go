@@ -15,13 +15,14 @@
 package backup
 
 import (
-	"cassandrabackup/bucket"
-	"cassandrabackup/digest"
-	"cassandrabackup/manifests"
-	"cassandrabackup/nodeidentity"
-	"cassandrabackup/nodetool"
 	"context"
 	"fmt"
+
+	"github.com/retailnext/cassandrabackup/bucket"
+	"github.com/retailnext/cassandrabackup/digest"
+	"github.com/retailnext/cassandrabackup/manifests"
+	"github.com/retailnext/cassandrabackup/nodeidentity"
+	"github.com/retailnext/cassandrabackup/nodetool"
 )
 
 func DoSnapshotBackup(ctx context.Context) error {

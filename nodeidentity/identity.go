@@ -15,12 +15,12 @@
 package nodeidentity
 
 import (
-	"cassandrabackup/cassandraconfig"
-	"cassandrabackup/manifests"
-	"cassandrabackup/systemlocal"
-	"cassandrabackup/unixtime"
 	"os"
 
+	"github.com/retailnext/cassandrabackup/cassandraconfig"
+	"github.com/retailnext/cassandrabackup/manifests"
+	"github.com/retailnext/cassandrabackup/systemlocal"
+	"github.com/retailnext/cassandrabackup/unixtime"
 	"go.uber.org/zap"
 )
 

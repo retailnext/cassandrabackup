@@ -15,13 +15,6 @@
 package main
 
 import (
-	"cassandrabackup/backup"
-	"cassandrabackup/bucket"
-	"cassandrabackup/cache"
-	"cassandrabackup/manifests"
-	"cassandrabackup/periodic"
-	"cassandrabackup/restore"
-	"cassandrabackup/unixtime"
 	"context"
 	"net/http"
 	"os"
@@ -29,6 +22,13 @@ import (
 	"runtime/pprof"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/retailnext/cassandrabackup/backup"
+	"github.com/retailnext/cassandrabackup/bucket"
+	"github.com/retailnext/cassandrabackup/cache"
+	"github.com/retailnext/cassandrabackup/manifests"
+	"github.com/retailnext/cassandrabackup/periodic"
+	"github.com/retailnext/cassandrabackup/restore"
+	"github.com/retailnext/cassandrabackup/unixtime"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/ssh/terminal"
 	"gopkg.in/alecthomas/kingpin.v2"

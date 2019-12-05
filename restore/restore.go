@@ -15,11 +15,6 @@
 package restore
 
 import (
-	"cassandrabackup/bucket"
-	"cassandrabackup/digest"
-	"cassandrabackup/manifests"
-	"cassandrabackup/paranoid"
-	"cassandrabackup/writefile"
 	"context"
 	"os"
 	"os/user"
@@ -29,6 +24,11 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/retailnext/cassandrabackup/bucket"
+	"github.com/retailnext/cassandrabackup/digest"
+	"github.com/retailnext/cassandrabackup/manifests"
+	"github.com/retailnext/cassandrabackup/paranoid"
+	"github.com/retailnext/cassandrabackup/writefile"
 	"go.uber.org/zap"
 )
 

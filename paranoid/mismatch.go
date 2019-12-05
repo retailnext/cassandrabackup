@@ -14,9 +14,7 @@
 
 package paranoid
 
-import (
-	"fmt"
-)
+import "fmt"
 
 type FingerprintMismatch struct {
 	name     string

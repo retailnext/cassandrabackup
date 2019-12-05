@@ -15,14 +15,14 @@
 package bucket
 
 import (
-	"cassandrabackup/digest"
-	"cassandrabackup/manifests"
-	"cassandrabackup/unixtime"
 	"encoding/base64"
 	"fmt"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/retailnext/cassandrabackup/digest"
+	"github.com/retailnext/cassandrabackup/manifests"
+	"github.com/retailnext/cassandrabackup/unixtime"
 )
 
 func (c *Client) keyWithPrefix(key string) string {

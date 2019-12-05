@@ -14,9 +14,7 @@
 
 package paranoid
 
-import (
-	"os"
-)
+import "os"
 
 func NewFileFromInfo(name string, info os.FileInfo) File {
 	file := File{

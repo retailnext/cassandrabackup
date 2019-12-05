@@ -15,10 +15,10 @@
 package periodic
 
 import (
-	"cassandrabackup/backup"
 	"context"
 	"time"
 
+	"github.com/retailnext/cassandrabackup/backup"
 	"go.uber.org/zap"
 )
 

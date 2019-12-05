@@ -227,7 +227,7 @@ func (c *Cache) put(key, value []byte) error {
 }
 
 func (s *Storage) currentAndPreviousTopBuckets() ([]byte, []byte) {
-	var now = time.Now().Unix()
+	now := time.Now().Unix()
 	currentTs := (now / s.bucketPeriod) * s.bucketPeriod
 	previousTs := currentTs - s.bucketPeriod
 
