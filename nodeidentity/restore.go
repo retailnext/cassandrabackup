@@ -45,25 +45,30 @@ func ForRestore(ctx context.Context, overrideCluster, overrideHostname, override
 	}
 
 	lgr := zap.S()
-	pattern := getHostnamePattern(overridePattern)
+	expr := hostnameExprForThisHost(overridePattern)
+	filtered := ForRestoreMatchingRegexp(ctx, result.Cluster, expr)
+	if len(filtered) != 1 {
+		lgr.Panicw("failed_to_find_host", "pattern", overridePattern, "found", filtered)
+	}
+	lgr.Infow("selected_host", "pattern", overridePattern, "found", filtered[0])
+
+	return filtered[0]
+}
+
+func ForRestoreMatchingRegexp(ctx context.Context, cluster string, expr *regexp.Regexp) []manifests.NodeIdentity {
 	client := bucket.OpenShared()
 
-	nodes, err := client.ListHostNames(ctx, result.Cluster)
+	nodes, err := client.ListHostNames(ctx, cluster)
 	if err != nil {
-		lgr.Panicw("list_hosts_error", "cluster", result.Cluster, "err", err)
+		zap.S().Panicw("list_hosts_error", "cluster", cluster, "err", err)
 	}
 	filtered := nodes[:0]
 	for _, ni := range nodes {
-		if pattern.MatchString(ni.Hostname) {
+		if expr.MatchString(ni.Hostname) {
 			filtered = append(filtered, ni)
 		}
 	}
-	if len(filtered) != 1 {
-		lgr.Panicw("failed_to_find_host", "pattern", pattern, "found", filtered)
-	}
-	lgr.Infow("selected_host", "pattern", pattern, "found", filtered[0])
-
-	return filtered[0]
+	return filtered
 }
 
 func getCluster() string {
@@ -74,7 +79,7 @@ func getCluster() string {
 	return raw.ClusterName
 }
 
-func getHostnamePattern(overridePattern *string) *regexp.Regexp {
+func hostnameExprForThisHost(overridePattern *string) *regexp.Regexp {
 	var pattern string
 	if overridePattern != nil {
 		pattern = *overridePattern

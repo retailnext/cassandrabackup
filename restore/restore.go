@@ -16,8 +16,10 @@ package restore
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/user"
+	"path"
 	"path/filepath"
 	"strconv"
 	"sync"
@@ -26,18 +28,17 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/retailnext/cassandrabackup/bucket"
 	"github.com/retailnext/cassandrabackup/digest"
-	"github.com/retailnext/cassandrabackup/manifests"
 	"github.com/retailnext/cassandrabackup/paranoid"
+	"github.com/retailnext/cassandrabackup/restore/plan"
 	"github.com/retailnext/cassandrabackup/writefile"
 	"go.uber.org/zap"
 )
 
 type worker struct {
-	identity manifests.NodeIdentity
-	ctx      context.Context
-	cache    *digest.Cache
-	client   *bucket.Client
-	target   writefile.Config
+	ctx    context.Context
+	cache  *digest.Cache
+	client *bucket.Client
+	target writefile.Config
 
 	limiter    chan struct{}
 	wg         sync.WaitGroup
@@ -45,37 +46,44 @@ type worker struct {
 	lock       sync.Mutex
 }
 
-func newWorker(identity manifests.NodeIdentity) *worker {
-	lgr := zap.S()
-	cassandraUser, err := user.Lookup("cassandra")
-	if err != nil {
-		lgr.Panicw("cassandra_user_lookup_error", "err", err)
-	}
-	cassandraUid, err := strconv.Atoi(cassandraUser.Uid)
-	if err != nil {
-		lgr.Panicw("cassandra_user_id_lookup_error", "uid", cassandraUser.Uid, "err", err)
-	}
-	cassandraGid, err := strconv.Atoi(cassandraUser.Gid)
-	if err != nil {
-		lgr.Panicw("cassandra_group_id_lookup_error", "gid", cassandraUser.Gid, "err", err)
-	}
-
-	return &worker{
-		identity: identity,
-		cache:    digest.OpenShared(),
-		client:   bucket.OpenShared(),
+func newWorker(directory string, ensureOwnership bool) *worker {
+	w := worker{
 		target: writefile.Config{
-			Directory:                "/var/lib/cassandra/data",
+			Directory:                directory,
 			DirectoryMode:            0755,
-			DirectoryUID:             cassandraUid,
-			DirectoryGID:             cassandraGid,
-			EnsureDirectoryOwnership: true,
+			EnsureDirectoryOwnership: ensureOwnership,
 			FileMode:                 0644,
-			FileUID:                  cassandraUid,
-			FileGID:                  cassandraGid,
-			EnsureFileOwnership:      true,
+			EnsureFileOwnership:      ensureOwnership,
 		},
 	}
+
+	if ensureOwnership {
+		lgr := zap.S()
+		userName := "cassandra"
+		osUser, err := user.Lookup(userName)
+		if err != nil {
+			lgr.Panicw("user_lookup_error", "user", userName, "err", err)
+		}
+
+		uid, err := strconv.Atoi(osUser.Uid)
+		if err != nil {
+			lgr.Panicw("user_id_lookup_error", "uid", osUser.Uid, "err", err)
+		}
+		w.target.DirectoryUID = uid
+		w.target.FileUID = uid
+
+		gid, err := strconv.Atoi(osUser.Gid)
+		if err != nil {
+			lgr.Panicw("group_id_lookup_error", "gid", osUser.Gid, "err", err)
+		}
+		w.target.DirectoryGID = gid
+		w.target.FileGID = gid
+	}
+
+	w.cache = digest.OpenShared()
+	w.client = bucket.OpenShared()
+
+	return &w
 }
 
 func (w *worker) restoreFiles(ctx context.Context, files map[string]digest.ForRestore) error {
@@ -212,4 +220,54 @@ func registerMetrics() {
 		prometheus.MustRegister(downloadBytes)
 		prometheus.MustRegister(downloadErrors)
 	})
+}
+
+type downloadPlan struct {
+	files        map[string]digest.ForRestore
+	changedFiles map[string][]digest.ForRestore
+}
+
+func (dp *downloadPlan) addHost(prefix string, nodePlan plan.NodePlan) {
+	if dp.files == nil {
+		dp.files = make(map[string]digest.ForRestore)
+	}
+	for fileName, fileDigest := range nodePlan.Files {
+		if prefix != "" {
+			fileName = path.Join(prefix, fileName)
+		}
+		dp.files[fileName] = fileDigest
+	}
+	if len(nodePlan.ChangedFiles) > 0 {
+		if dp.changedFiles == nil {
+			dp.changedFiles = make(map[string][]digest.ForRestore)
+		}
+		for fileName, historyEntries := range nodePlan.ChangedFiles {
+			if prefix != "" {
+				fileName = path.Join(prefix, fileName)
+			}
+			historyForFile := dp.changedFiles[fileName]
+			for _, entry := range historyEntries {
+				historyForFile = append(historyForFile, entry.Digest)
+			}
+			dp.changedFiles[fileName] = historyForFile
+		}
+	}
+}
+
+func (dp *downloadPlan) includeChanged(prefix string) map[string]digest.ForRestore {
+	if len(dp.changedFiles) == 0 {
+		return dp.files
+	}
+
+	result := make(map[string]digest.ForRestore)
+	for fileName, fileDigest := range dp.files {
+		result[fileName] = fileDigest
+	}
+	for fileName, versions := range dp.changedFiles {
+		for versionId, versionDigest := range versions {
+			name := path.Join(prefix, fileName, fmt.Sprint(versionId))
+			result[name] = versionDigest
+		}
+	}
+	return result
 }
