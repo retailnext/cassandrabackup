@@ -169,8 +169,16 @@ func main() {
 		if err != nil {
 			lgr.Fatalw("backup_error", "err", err)
 		}
-	case "restore":
-		err := restore.Main(ctx)
+	case "restore host":
+		err := restore.RestoreHost(ctx)
+		if err == context.Canceled {
+			return
+		}
+		if err != nil {
+			lgr.Fatalw("restore_error", "err", err)
+		}
+	case "restore cluster":
+		err := restore.RestoreCluster(ctx)
 		if err == context.Canceled {
 			return
 		}

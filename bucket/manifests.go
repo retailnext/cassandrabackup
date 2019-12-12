@@ -51,7 +51,6 @@ func (c *Client) ListManifests(ctx context.Context, identity manifests.NodeIdent
 			for _, obj := range output.Contents {
 				key := *obj.Key
 				if notAfterKey != "" && key > notAfterKey {
-					lgr.Debugw("list_manifests_done", "key", key, "notAfterKey", notAfterKey)
 					done = true
 				} else {
 					name := filepath.Base(key)
