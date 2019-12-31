@@ -107,6 +107,10 @@ func (r *ForRestore) MarshalBinary() ([]byte, error) {
 	return r.blake2b.MarshalBinary()
 }
 
+func (r *ForRestore) UnmarshalBinary(data []byte) error {
+	return r.blake2b.UnmarshalBinary(data)
+}
+
 type MismatchError struct {
 	expected blake2bDigest
 	actual   blake2bDigest
