@@ -5,7 +5,7 @@ require (
 	github.com/aws/aws-sdk-go v1.27.0
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
 	github.com/go-test/deep v1.0.4
-	github.com/gocql/gocql v0.0.0-20191224103530-b7facab47581
+	github.com/gocql/gocql v0.0.0-20200103014340-68f928edb90a
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/mailru/easyjson v0.7.0
 	github.com/prometheus/client_golang v1.2.1
