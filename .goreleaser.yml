@@ -22,7 +22,7 @@ changelog:
   sort: asc
   filters:
     exclude:
-      - '^chore(ci):'
-      - '^chore(deps):'
+      - '^chore\(ci\):'
+      - '^chore\(deps\):'
       - '^docs:'
       - '^test:'
