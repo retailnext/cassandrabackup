@@ -1,6 +1,10 @@
 ---
 language: go
 go: "1.13.x"
+branches:
+  only:
+    - master
+    - /^v\d+\.\d+(\.\d+)?(-\S*)?$/
 env:
   global:
     - CGO_ENABLED=0
