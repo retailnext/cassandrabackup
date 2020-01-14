@@ -11,16 +11,18 @@ builds:
       - linux
     goarch:
       - amd64
-nfpm:
-  formats:
-    - deb
-  homepage: "https://github.com/retailnext/cassandrabackup"
-  license: "Apache 2.0"
+nfpms:
+  - formats:
+      - deb
+    homepage: "https://github.com/retailnext/cassandrabackup"
+    license: "Apache 2.0"
 checksum:
   name_template: 'checksums.txt'
 changelog:
   sort: asc
   filters:
     exclude:
+      - '^chore(ci):'
+      - '^chore(deps):'
       - '^docs:'
       - '^test:'
