@@ -9,9 +9,7 @@ require (
 	github.com/mailru/easyjson v0.7.1
 	github.com/prometheus/client_golang v1.5.1
 	go.etcd.io/bbolt v1.3.3
-	go.uber.org/atomic v1.5.1 // indirect
-	go.uber.org/multierr v1.4.0 // indirect
-	go.uber.org/zap v1.14.0
+	go.uber.org/zap v1.14.1
 	golang.org/x/crypto v0.0.0-20200311171314-f7b00557c8c4
 	golang.org/x/lint v0.0.0-20191125180803-fdd1cda4f05f // indirect
 	golang.org/x/text v0.3.2 // indirect
