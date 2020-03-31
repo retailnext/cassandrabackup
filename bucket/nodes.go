@@ -49,3 +49,30 @@ func (c *Client) ListHostNames(ctx context.Context, cluster string) ([]manifests
 	})
 	return result, err
 }
+
+func (c *Client) ListClusters(ctx context.Context) ([]string, error) {
+	lgr := zap.S()
+	prefix := c.absoluteKeyPrefixForClusters()
+	input := &s3.ListObjectsV2Input{
+		Bucket:    &c.bucket,
+		Delimiter: aws.String("/"),
+		Prefix:    &prefix,
+	}
+	var result []string
+	err := c.s3Svc.ListObjectsV2PagesWithContext(ctx, input, func(page *s3.ListObjectsV2Output, lastPage bool) bool {
+		for _, obj := range page.CommonPrefixes {
+			cluster, err := c.decodeCluster(*obj.Prefix)
+			if err != nil {
+				lgr.Errorw("decode_cluster_error", "err", err)
+			} else {
+				result = append(result, cluster)
+			}
+		}
+		if page.NextContinuationToken != nil {
+			// Continue to the next page
+			return true
+		}
+		return false
+	})
+	return result, err
+}

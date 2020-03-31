@@ -29,6 +29,10 @@ import (
 
 var UploadSkipped = errors.New("upload skipped")
 
+func (c *Client) UploadFile(ctx context.Context, bucket string, key string, file paranoid.File, digests digest.ForUpload) error {
+	return c.uploader.UploadFile(ctx, bucket, key, file, digests)
+}
+
 func (c *Client) PutBlob(ctx context.Context, file paranoid.File, digests digest.ForUpload) error {
 	key := c.absoluteKeyForBlob(digests.ForRestore())
 	if exists, err := c.blobExists(ctx, digests); err != nil {
@@ -40,7 +44,7 @@ func (c *Client) PutBlob(ctx context.Context, file paranoid.File, digests digest
 		return UploadSkipped
 	}
 
-	if err := c.uploader.UploadFile(ctx, key, file, digests); err != nil {
+	if err := c.UploadFile(ctx, c.uploader.Bucket, key, file, digests); err != nil {
 		uploadErrors.Inc()
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return ctxErr
@@ -52,10 +56,9 @@ func (c *Client) PutBlob(ctx context.Context, file paranoid.File, digests digest
 	return nil
 }
 
-func (c *Client) DownloadBlob(ctx context.Context, digests digest.ForRestore, file *os.File) error {
-	key := c.absoluteKeyForBlob(digests)
+func (c *Client) DownloadFile(ctx context.Context, bucket string, key string, file *os.File) error {
 	getObjectInput := &s3.GetObjectInput{
-		Bucket: &c.bucket,
+		Bucket: &bucket,
 		Key:    &key,
 	}
 	attempts := 0
@@ -77,9 +80,17 @@ func (c *Client) DownloadBlob(ctx context.Context, digests digest.ForRestore, fi
 			}
 			zap.S().Errorw("get_blob_s3_error", "err", err, "attempts", attempts)
 		} else {
-			return digests.Verify(ctx, file)
+			return nil
 		}
 	}
+}
+
+func (c *Client) DownloadBlob(ctx context.Context, digests digest.ForRestore, file *os.File) error {
+	err := c.DownloadFile(ctx, c.absoluteKeyForBlob(digests), c.bucket, file)
+	if err != nil {
+		return err
+	}
+	return digests.Verify(ctx, file)
 }
 
 func (c *Client) blobExists(ctx context.Context, digests digest.ForUpload) (bool, error) {

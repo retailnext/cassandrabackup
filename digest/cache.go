@@ -28,7 +28,7 @@ type Cache struct {
 }
 
 func OpenShared() *Cache {
-	cache.OpenShared()
+	cache.OpenShared(*cache.SharedCacheFile)
 	return &Cache{
 		c: cache.Shared.Cache(cacheName),
 	}

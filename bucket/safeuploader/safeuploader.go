@@ -37,11 +37,11 @@ type SafeUploader struct {
 	StorageClass         *string
 }
 
-func (u *SafeUploader) UploadFile(ctx context.Context, key string, file paranoid.File, digests digest.ForUpload) error {
+func (u *SafeUploader) UploadFile(ctx context.Context, bucket string, key string, file paranoid.File, digests digest.ForUpload) error {
 	upl := fileUploader{
 		s3Svc: u.S3,
 
-		bucket:               u.Bucket,
+		bucket:               bucket,
 		key:                  key,
 		serverSideEncryption: u.ServerSideEncryption,
 		storageClass:         u.StorageClass,
