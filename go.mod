@@ -4,7 +4,7 @@ require (
 	github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d // indirect
 	github.com/aws/aws-sdk-go v1.30.7
 	github.com/go-test/deep v1.0.5
-	github.com/gocql/gocql v0.0.0-20200324094621-6d895e38b0a5
+	github.com/gocql/gocql v0.0.0-20200410100145-b454769479c6
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/mailru/easyjson v0.7.1
 	github.com/prometheus/client_golang v1.5.1
