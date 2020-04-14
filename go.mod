@@ -10,7 +10,7 @@ require (
 	github.com/prometheus/client_golang v1.5.1
 	go.etcd.io/bbolt v1.3.4
 	go.uber.org/zap v1.14.1
-	golang.org/x/crypto v0.0.0-20200406173513-056763e48d71
+	golang.org/x/crypto v0.0.0-20200414155820-4f8f47aa7992
 	golang.org/x/lint v0.0.0-20191125180803-fdd1cda4f05f // indirect
 	golang.org/x/text v0.3.2 // indirect
 	golang.org/x/tools v0.0.0-20200114191411-189207f339b7 // indirect
