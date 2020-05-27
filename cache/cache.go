@@ -39,7 +39,7 @@ var (
 	Shared *Storage
 	once   sync.Once
 
-	SharedCacheFile = kingpin.Flag("cache-file", "Location of local cache file.").Required().String()
+	sharedCacheFile = kingpin.Flag("cache-file", "Location of local cache file.").Required().String()
 )
 
 func Open(path string, mode os.FileMode) (*Storage, error) {
@@ -93,9 +93,9 @@ func ensureFileOwnership(path string) {
 	}
 }
 
-func OpenShared(sharedCacheFile string) {
+func OpenShared() {
 	once.Do(func() {
-		c, err := Open(sharedCacheFile, 0644)
+		c, err := Open(*sharedCacheFile, 0644)
 		if err != nil {
 			panic(err)
 		}
