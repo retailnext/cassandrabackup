@@ -48,14 +48,6 @@ type Client struct {
 	serverSideEncryption *string
 }
 
-type Config struct {
-	BucketName             string
-	BucketRegion           string
-	BucketKeyPrefix        string
-	BucketBlobStorageClass string
-	SharedCacheFile        string
-}
-
 var (
 	bucketName             = kingpin.Flag("s3-bucket", "S3 bucket name.").Required().String()
 	bucketRegion           = kingpin.Flag("s3-region", "S3 bucket region.").Envar("AWS_REGION").Required().String()
@@ -69,20 +61,16 @@ var (
 )
 
 func OpenShared() *Client {
-	return OpenSharedWithConfig(&Config{*bucketName, *bucketRegion, *bucketKeyPrefix, *bucketBlobStorageClass, *cache.SharedCacheFile})
-}
-
-func OpenSharedWithConfig(config *Config) *Client {
 	once.Do(func() {
-		Shared = NewClient(config)
+		Shared = newClient()
 	})
 	return Shared
 }
 
-func NewClient(config *Config) *Client {
-	cache.OpenShared(config.SharedCacheFile)
+func newClient() *Client {
+	cache.OpenShared()
 
-	awsConf := aws.NewConfig().WithRegion(config.BucketRegion)
+	awsConf := aws.NewConfig().WithRegion(*bucketRegion)
 	awsSession, err := session.NewSession(awsConf)
 	if err != nil {
 		zap.S().Fatalw("aws_new_session_error", "err", err)
@@ -93,9 +81,9 @@ func NewClient(config *Config) *Client {
 		s3Svc: s3Svc,
 		uploader: &safeuploader.SafeUploader{
 			S3:                   s3Svc,
-			Bucket:               config.BucketName,
+			Bucket:               *bucketName,
 			ServerSideEncryption: aws.String(s3.ServerSideEncryptionAes256),
-			StorageClass:         &config.BucketBlobStorageClass,
+			StorageClass:         bucketBlobStorageClass,
 		},
 		downloader: s3manager.NewDownloaderWithClient(s3Svc, func(d *s3manager.Downloader) {
 			d.PartSize = 64 * 1024 * 1024 // 64MB per part
@@ -103,8 +91,8 @@ func NewClient(config *Config) *Client {
 		existsCache: &ExistsCache{
 			cache: cache.Shared.Cache("bucket_exists"),
 		},
-		bucket:               config.BucketName,
-		prefix:               strings.Trim(config.BucketKeyPrefix, "/"),
+		bucket:               *bucketName,
+		prefix:               strings.Trim(*bucketKeyPrefix, "/"),
 		serverSideEncryption: aws.String(s3.ServerSideEncryptionAes256),
 	}
 	c.validateEncryptionConfiguration()
