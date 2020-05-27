@@ -60,6 +60,10 @@ var (
 	once   sync.Once
 )
 
+func GetBucketFlags() (*string, *string) {
+	return bucketName, bucketRegion
+}
+
 func OpenShared() *Client {
 	once.Do(func() {
 		Shared = newClient()
