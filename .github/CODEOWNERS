@@ -1,0 +1,3 @@
+* @eriksw
+go.mod @eriksw app/renovate-approve
+go.sum @eriksw app/renovate-approve
