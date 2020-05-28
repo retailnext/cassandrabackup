@@ -15,7 +15,6 @@
 package bucket
 
 import (
-	"bytes"
 	"encoding/base64"
 	"fmt"
 	"strings"
@@ -30,40 +29,15 @@ func (c *Client) keyWithPrefix(key string) string {
 	if c.prefix == "" {
 		return key
 	}
-	var buffer bytes.Buffer
-	buffer.WriteString(c.prefix)
-	buffer.WriteString("/")
-	buffer.WriteString(key)
-	return buffer.String()
+	return fmt.Sprintf("%s/%s", c.prefix, key)
 }
 
 func (c *Client) absoluteKeyForBlob(digests digest.ForRestore) string {
-	var buffer bytes.Buffer
 	encoded := digests.URLSafe()
-	buffer.WriteString("files/blake2b/")
-	buffer.WriteString(encoded[0:1])
-	buffer.WriteString("/")
-	buffer.WriteString(encoded[1:2])
-	buffer.WriteString("/")
-	buffer.WriteString(encoded[2:])
-	return c.keyWithPrefix(buffer.String())
+	return c.keyWithPrefix(fmt.Sprintf("files/blake2b/%s/%s/%s", encoded[0:1], encoded[1:2], encoded[2:]))
 }
 
-func (c *Client) DecodeBlobKey(key string) ([]byte, error) {
-	blobPrefix := c.keyWithPrefix("files/blake2b/")
-	encoded := strings.TrimPrefix(key, blobPrefix)
-	var buffer bytes.Buffer
-	buffer.WriteString(encoded[0:1])
-	buffer.WriteString(encoded[2:3])
-	buffer.WriteString(encoded[4:])
-	return base64.URLEncoding.DecodeString(buffer.String())
-}
-
-func (c *Client) AbsoluteKeyForBlob(digests digest.ForRestore) string {
-	return c.absoluteKeyForBlob(digests)
-}
-
-func (c *Client) absoluteKeyPrefixForClusters() string {
+func (c *Client) absolteKeyPrefixForClusters() string {
 	return c.keyWithPrefix("manifests/")
 }
 
@@ -72,21 +46,14 @@ func (c *Client) absoluteKeyPrefixForClusterHosts(cluster string) string {
 		panic("empty cluster")
 	}
 	urlCluster := base64.URLEncoding.EncodeToString([]byte(cluster))
-	clustersPrefix := c.absoluteKeyPrefixForClusters()
+	clustersPrefix := c.absolteKeyPrefixForClusters()
 	return fmt.Sprintf("%s%s/", clustersPrefix, urlCluster)
-}
-
-func (c *Client) decodeCluster(key string) (string, error) {
-	clustersPrefix := c.absoluteKeyPrefixForClusters()
-	urlCluster := strings.TrimSuffix(strings.TrimPrefix(key, clustersPrefix), "/")
-	cluster, err := base64.URLEncoding.DecodeString(urlCluster)
-	return string(cluster), err
 }
 
 func (c *Client) decodeClusterHosts(prefixes []*s3.CommonPrefix) ([]manifests.NodeIdentity, []string) {
 	result := make([]manifests.NodeIdentity, 0, len(prefixes))
 	var bonus []string
-	skip := len(c.absoluteKeyPrefixForClusters())
+	skip := len(c.absolteKeyPrefixForClusters())
 	for _, obj := range prefixes {
 		raw := *obj.Prefix
 		trimmed := raw[skip:]
@@ -129,8 +96,4 @@ func (c *Client) absoluteKeyForManifestTimeRange(identity manifests.NodeIdentity
 
 func (c *Client) absoluteKeyForManifest(identity manifests.NodeIdentity, manifestKey manifests.ManifestKey) string {
 	return c.absoluteKeyPrefixForManifests(identity) + manifestKey.FileName()
-}
-
-func (c *Client) AbsoluteKeyForManifest(identity manifests.NodeIdentity, manifestKey manifests.ManifestKey) string {
-	return c.absoluteKeyForManifest(identity, manifestKey)
 }
