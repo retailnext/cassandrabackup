@@ -90,11 +90,6 @@ func (c *Client) PutManifest(ctx context.Context, identity manifests.NodeIdentit
 func (c *Client) GetManifests(ctx context.Context, identity manifests.NodeIdentity, keys manifests.ManifestKeys) ([]manifests.Manifest, error) {
 	var results []manifests.Manifest
 	for _, manifestKey := range keys {
-		select {
-		case <-ctx.Done():
-			return nil, nil
-		default:
-		}
 		absoluteKey := c.absoluteKeyForManifest(identity, manifestKey)
 		var m manifests.Manifest
 		if err := c.getDocument(ctx, absoluteKey, &m); err != nil {

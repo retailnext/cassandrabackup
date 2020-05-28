@@ -1,4 +1,4 @@
-// Copyright 2020 RetailNext, Inc.
+// Copyright 2019 RetailNext, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -46,29 +46,6 @@ func (c *Client) ListHostNames(ctx context.Context, cluster string) ([]manifests
 			lgr.Warnw("unexpected_objects_in_bucket", "keys", unexpected)
 		}
 		return true
-	})
-	return result, err
-}
-
-func (c *Client) ListClusters(ctx context.Context) ([]string, error) {
-	lgr := zap.S()
-	prefix := c.absoluteKeyPrefixForClusters()
-	input := &s3.ListObjectsV2Input{
-		Bucket:    &c.bucket,
-		Delimiter: aws.String("/"),
-		Prefix:    &prefix,
-	}
-	var result []string
-	err := c.s3Svc.ListObjectsV2PagesWithContext(ctx, input, func(page *s3.ListObjectsV2Output, lastPage bool) bool {
-		for _, obj := range page.CommonPrefixes {
-			cluster, err := c.decodeCluster(*obj.Prefix)
-			if err != nil {
-				lgr.Errorw("decode_cluster_error", "err", err)
-			} else {
-				result = append(result, cluster)
-			}
-		}
-		return page.NextContinuationToken != nil
 	})
 	return result, err
 }
