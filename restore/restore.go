@@ -1,4 +1,4 @@
-// Copyright 2019 RetailNext, Inc.
+// Copyright 2020 RetailNext, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -94,7 +94,7 @@ func (w *worker) restoreFiles(ctx context.Context, files map[string]digest.ForRe
 	doneCh := ctx.Done()
 	for name, forRestore := range files {
 		select {
-		case _ = <-doneCh:
+		case <-doneCh:
 			break
 		case w.limiter <- struct{}{}:
 			w.wg.Add(1)
