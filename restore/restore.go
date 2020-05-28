@@ -30,7 +30,7 @@ import (
 	"github.com/retailnext/cassandrabackup/digest"
 	"github.com/retailnext/cassandrabackup/paranoid"
 	"github.com/retailnext/cassandrabackup/restore/plan"
-	"github.com/retailnext/cassandrabackup/writefile"
+	"github.com/retailnext/writefile"
 	"go.uber.org/zap"
 )
 
