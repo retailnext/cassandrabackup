@@ -1,4 +1,4 @@
-// Copyright 2019 RetailNext, Inc.
+// Copyright 2020 RetailNext, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -117,5 +117,13 @@ type MismatchError struct {
 }
 
 func (e MismatchError) Error() string {
-	return fmt.Sprintf("digest mismatch: expected=%s actual=%s", e.expected, e.actual)
+	expected, err := e.expected.MarshalText()
+	if err != nil {
+		panic(err)
+	}
+	actual, err := e.actual.MarshalText()
+	if err != nil {
+		panic(err)
+	}
+	return fmt.Sprintf("digest mismatch: expected=%s actual=%s", string(expected), string(actual))
 }

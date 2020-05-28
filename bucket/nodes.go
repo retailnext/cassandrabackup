@@ -1,4 +1,4 @@
-// Copyright 2019 RetailNext, Inc.
+// Copyright 2020 RetailNext, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -68,11 +68,7 @@ func (c *Client) ListClusters(ctx context.Context) ([]string, error) {
 				result = append(result, cluster)
 			}
 		}
-		if page.NextContinuationToken != nil {
-			// Continue to the next page
-			return true
-		}
-		return false
+		return page.NextContinuationToken != nil
 	})
 	return result, err
 }

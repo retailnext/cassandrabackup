@@ -1,4 +1,4 @@
-// Copyright 2019 RetailNext, Inc.
+// Copyright 2020 RetailNext, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,10 +39,10 @@ func Main(ctx context.Context) error {
 DONE:
 	for {
 		select {
-		case _ = <-doneCh:
+		case <-doneCh:
 			err = ctx.Err()
 			break DONE
-		case _ = <-everyMinute.C:
+		case <-everyMinute.C:
 		}
 
 		now := time.Now()

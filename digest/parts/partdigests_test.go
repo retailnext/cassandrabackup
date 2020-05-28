@@ -1,4 +1,4 @@
-// Copyright 2019 RetailNext, Inc.
+// Copyright 2020 RetailNext, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -117,7 +117,10 @@ func comparePartsDigests(expected, actual PartDigests) string {
 func md5Of(data []byte) md5Digest {
 	var result md5Digest
 	h := md5.New()
-	h.Write(data)
+	_, err := h.Write(data)
+	if err != nil {
+		panic(err)
+	}
 	copy(result[:], h.Sum(nil))
 	return result
 }
@@ -125,7 +128,10 @@ func md5Of(data []byte) md5Digest {
 func sha256Of(data []byte) sha256Digest {
 	var result sha256Digest
 	h := sha256.New()
-	h.Write(data)
+	_, err := h.Write(data)
+	if err != nil {
+		panic(err)
+	}
 	copy(result[:], h.Sum(nil))
 	return result
 }
