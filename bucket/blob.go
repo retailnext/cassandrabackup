@@ -30,7 +30,7 @@ import (
 var UploadSkipped = errors.New("upload skipped")
 
 func (c *Client) PutBlob(ctx context.Context, file paranoid.File, digests digest.ForUpload) error {
-	key := c.absoluteKeyForBlob(digests.ForRestore())
+	key := c.AbsoluteKeyForBlob(digests.ForRestore())
 	if exists, err := c.blobExists(ctx, digests); err != nil {
 		uploadErrors.Inc()
 		return err
@@ -53,7 +53,7 @@ func (c *Client) PutBlob(ctx context.Context, file paranoid.File, digests digest
 }
 
 func (c *Client) DownloadBlob(ctx context.Context, digests digest.ForRestore, file *os.File) error {
-	key := c.absoluteKeyForBlob(digests)
+	key := c.AbsoluteKeyForBlob(digests)
 	getObjectInput := &s3.GetObjectInput{
 		Bucket: &c.bucket,
 		Key:    &key,
@@ -83,7 +83,7 @@ func (c *Client) DownloadBlob(ctx context.Context, digests digest.ForRestore, fi
 }
 
 func (c *Client) blobExists(ctx context.Context, digests digest.ForUpload) (bool, error) {
-	key := c.absoluteKeyForBlob(digests.ForRestore())
+	key := c.AbsoluteKeyForBlob(digests.ForRestore())
 	if c.existsCache.Get(digests.ForRestore()) {
 		return true, nil
 	}

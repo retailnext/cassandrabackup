@@ -68,11 +68,8 @@ func (c *Client) ListClusters(ctx context.Context) ([]string, error) {
 				result = append(result, cluster)
 			}
 		}
-		if page.NextContinuationToken != nil {
-			// Continue to the next page
-			return true
-		}
-		return false
+		// Continue to the next page
+		return page.NextContinuationToken != nil
 	})
 	return result, err
 }

@@ -89,9 +89,10 @@ func (c *Client) PutManifest(ctx context.Context, identity manifests.NodeIdentit
 
 func (c *Client) GetManifests(ctx context.Context, identity manifests.NodeIdentity, keys manifests.ManifestKeys) ([]manifests.Manifest, error) {
 	var results []manifests.Manifest
+	doneCh := ctx.Done()
 	for _, manifestKey := range keys {
 		select {
-		case <-ctx.Done():
+		case <-doneCh:
 			return nil, nil
 		default:
 		}

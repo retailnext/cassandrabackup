@@ -37,7 +37,7 @@ func (c *Client) keyWithPrefix(key string) string {
 	return buffer.String()
 }
 
-func (c *Client) absoluteKeyForBlob(digests digest.ForRestore) string {
+func (c *Client) AbsoluteKeyForBlob(digests digest.ForRestore) string {
 	var buffer bytes.Buffer
 	encoded := digests.URLSafe()
 	buffer.WriteString("files/blake2b/")
@@ -57,10 +57,6 @@ func (c *Client) DecodeBlobKey(key string) ([]byte, error) {
 	buffer.WriteString(encoded[2:3])
 	buffer.WriteString(encoded[4:])
 	return base64.URLEncoding.DecodeString(buffer.String())
-}
-
-func (c *Client) AbsoluteKeyForBlob(digests digest.ForRestore) string {
-	return c.absoluteKeyForBlob(digests)
 }
 
 func (c *Client) absoluteKeyPrefixForClusters() string {
