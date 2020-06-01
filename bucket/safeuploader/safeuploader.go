@@ -80,6 +80,7 @@ type fileUploader struct {
 }
 
 func (u *fileUploader) Upload(ctx context.Context) error {
+	pd := u.digests.PartDigests()
 	if osFile, err := u.file.Open(); err != nil {
 		return err
 	} else {
@@ -91,7 +92,7 @@ func (u *fileUploader) Upload(ctx context.Context) error {
 		}
 	}()
 
-	if u.digests.Parts() == 1 {
+	if pd.Parts() == 1 {
 		return u.uploadSinglePart(ctx)
 	}
 
@@ -120,7 +121,7 @@ func (u *fileUploader) Upload(ctx context.Context) error {
 	u.errors = make(map[int64]error)
 	doneCh := u.ctx.Done()
 	var partNumber int64
-	for partNumber = 1; partNumber <= u.digests.Parts(); partNumber++ {
+	for partNumber = 1; partNumber <= pd.Parts(); partNumber++ {
 		select {
 		case <-doneCh:
 			break
@@ -141,7 +142,7 @@ func (u *fileUploader) tryToComplete() error {
 
 	var parts []*s3.CompletedPart
 	var partNumber int64
-	for partNumber = 1; partNumber <= u.digests.Parts(); partNumber++ {
+	for partNumber = 1; partNumber <= u.digests.PartDigests().Parts(); partNumber++ {
 		etag, etagOk := u.etags[partNumber]
 		if !etagOk {
 			if len(u.errors) == 0 {
@@ -203,8 +204,9 @@ func (u *fileUploader) uploadPart(partNumber int64) {
 		u.wg.Done()
 	}()
 
-	offset := u.digests.PartOffset(partNumber)
-	length := u.digests.PartLength(partNumber)
+	pd := u.digests.PartDigests()
+	offset := pd.PartOffset(partNumber)
+	length := pd.PartLength(partNumber)
 	reader := io.NewSectionReader(u.osFile, offset, length)
 
 	uploadPartInput := &s3.UploadPartInput{
@@ -217,8 +219,8 @@ func (u *fileUploader) uploadPart(partNumber int64) {
 	}
 	var uploadPartOutput *s3.UploadPartOutput
 	uploadPartOutput, err = u.s3Svc.UploadPartWithContext(u.ctx, uploadPartInput, func(request *request.Request) {
-		request.HTTPRequest.Header.Set(md5Header, u.digests.PartContentMD5(partNumber))
-		request.HTTPRequest.Header.Set(sha256Header, u.digests.PartContentSHA256(partNumber))
+		request.HTTPRequest.Header.Set(md5Header, pd.PartContentMD5(partNumber))
+		request.HTTPRequest.Header.Set(sha256Header, pd.PartContentSHA256(partNumber))
 	})
 	if err != nil {
 		return
@@ -230,17 +232,18 @@ func (u *fileUploader) uploadPart(partNumber int64) {
 }
 
 func (u *fileUploader) uploadSinglePart(ctx context.Context) error {
+	pd := u.digests.PartDigests()
 	putObjectInput := s3.PutObjectInput{
 		Bucket:               &u.bucket,
 		Key:                  &u.key,
-		ContentLength:        aws.Int64(u.digests.PartLength(1)),
+		ContentLength:        aws.Int64(pd.PartLength(1)),
 		ServerSideEncryption: u.serverSideEncryption,
 		StorageClass:         u.storageClass,
 		Body:                 u.osFile,
 	}
 	_, err := u.s3Svc.PutObjectWithContext(ctx, &putObjectInput, func(i *request.Request) {
-		i.HTTPRequest.Header.Set(md5Header, u.digests.PartContentMD5(1))
-		i.HTTPRequest.Header.Set(sha256Header, u.digests.PartContentSHA256(1))
+		i.HTTPRequest.Header.Set(md5Header, pd.PartContentMD5(1))
+		i.HTTPRequest.Header.Set(sha256Header, pd.PartContentSHA256(1))
 	})
 	return err
 }

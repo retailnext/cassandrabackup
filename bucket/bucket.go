@@ -1,4 +1,4 @@
-// Copyright 2019 RetailNext, Inc.
+// Copyright 2020 RetailNext, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
 package bucket
 
 import (
+	"context"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -27,6 +29,10 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3manager/s3manageriface"
 	"github.com/retailnext/cassandrabackup/bucket/safeuploader"
 	"github.com/retailnext/cassandrabackup/cache"
+	"github.com/retailnext/cassandrabackup/digest"
+	"github.com/retailnext/cassandrabackup/manifests"
+	"github.com/retailnext/cassandrabackup/paranoid"
+	"github.com/retailnext/cassandrabackup/unixtime"
 	"go.uber.org/zap"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
@@ -37,14 +43,25 @@ const getBlobRetriesLimit = 3
 const listManifestsRetriesLimit = 3
 const retrySleepPerAttempt = time.Second
 
-type Client struct {
+type Client interface {
+	ListManifests(ctx context.Context, identity manifests.NodeIdentity, startAfter, notAfter unixtime.Seconds) (manifests.ManifestKeys, error)
+	GetManifests(ctx context.Context, identity manifests.NodeIdentity, keys manifests.ManifestKeys) ([]manifests.Manifest, error)
+	PutManifest(ctx context.Context, identity manifests.NodeIdentity, manifest manifests.Manifest) error
+	ListHostNames(ctx context.Context, cluster string) ([]manifests.NodeIdentity, error)
+	ListClusters(ctx context.Context) ([]string, error)
+	DownloadBlob(ctx context.Context, digests digest.ForRestore, file *os.File) error
+	PutBlob(ctx context.Context, file paranoid.File, digests digest.ForUpload) error
+	ForUpload() digest.ForUpload
+	KeyStore() *KeyStore
+}
+
+type awsClient struct {
 	s3Svc       s3iface.S3API
 	uploader    *safeuploader.SafeUploader
 	downloader  s3manageriface.DownloaderAPI
 	existsCache *ExistsCache
 
-	bucket               string
-	prefix               string
+	keyStore             KeyStore
 	serverSideEncryption *string
 }
 
@@ -56,7 +73,7 @@ var (
 )
 
 var (
-	Shared *Client
+	Shared Client
 	once   sync.Once
 )
 
@@ -64,14 +81,14 @@ func GetBucketFlags() (*string, *string) {
 	return bucketName, bucketRegion
 }
 
-func OpenShared() *Client {
+func OpenShared() Client {
 	once.Do(func() {
-		Shared = newClient()
+		Shared = newAWSClient()
 	})
 	return Shared
 }
 
-func newClient() *Client {
+func newAWSClient() *awsClient {
 	cache.OpenShared()
 
 	awsConf := aws.NewConfig().WithRegion(*bucketRegion)
@@ -81,7 +98,7 @@ func newClient() *Client {
 	}
 
 	s3Svc := s3.New(awsSession)
-	c := &Client{
+	c := &awsClient{
 		s3Svc: s3Svc,
 		uploader: &safeuploader.SafeUploader{
 			S3:                   s3Svc,
@@ -95,17 +112,16 @@ func newClient() *Client {
 		existsCache: &ExistsCache{
 			cache: cache.Shared.Cache("bucket_exists"),
 		},
-		bucket:               *bucketName,
-		prefix:               strings.Trim(*bucketKeyPrefix, "/"),
+		keyStore:             newKeyStore(*bucketName, strings.Trim(*bucketKeyPrefix, "/")),
 		serverSideEncryption: aws.String(s3.ServerSideEncryptionAes256),
 	}
 	c.validateEncryptionConfiguration()
 	return c
 }
 
-func (c *Client) validateEncryptionConfiguration() {
+func (c *awsClient) validateEncryptionConfiguration() {
 	input := &s3.GetBucketEncryptionInput{
-		Bucket: &c.bucket,
+		Bucket: &c.keyStore.bucket,
 	}
 	output, err := c.s3Svc.GetBucketEncryption(input)
 	if err != nil {
@@ -118,5 +134,5 @@ func (c *Client) validateEncryptionConfiguration() {
 			}
 		}
 	}
-	zap.S().Fatalw("bucket_not_configured_with_sse_algorithm", "bucket", c.bucket)
+	zap.S().Fatalw("bucket_not_configured_with_sse_algorithm", "bucket", c.keyStore.bucket)
 }

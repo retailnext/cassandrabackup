@@ -37,7 +37,7 @@ import (
 type worker struct {
 	ctx    context.Context
 	cache  *digest.Cache
-	client *bucket.Client
+	client bucket.Client
 	target writefile.Config
 
 	limiter    chan struct{}
@@ -130,7 +130,7 @@ func (w *worker) restoreFile(name string, forRestore digest.ForRestore) {
 
 	path := filepath.Join(w.target.Directory, name)
 	if maybeFile, maybeFileErr := paranoid.NewFile(path); maybeFileErr == nil {
-		if forUpload, forUploadErr := w.cache.Get(w.ctx, maybeFile); forUploadErr == nil {
+		if forUpload, forUploadErr := w.cache.Get(w.ctx, maybeFile, w.client.ForUpload); forUploadErr == nil {
 			if forUpload.ForRestore() == forRestore {
 				skippedBytes.Add(float64(maybeFile.Len()))
 				skippedFiles.Inc()
@@ -160,7 +160,7 @@ func (w *worker) restoreFile(name string, forRestore digest.ForRestore) {
 			downloadBytes.Add(float64(info.Size()))
 			// Prime the cache with this file since it's still in the kernel block cache
 			pfile := paranoid.NewFileFromInfo(file.Name(), info)
-			_, _ = w.cache.Get(w.ctx, pfile)
+			_, _ = w.cache.Get(w.ctx, pfile, w.client.ForUpload)
 		}
 		return nil
 	})

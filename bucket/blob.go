@@ -1,4 +1,4 @@
-// Copyright 2019 RetailNext, Inc.
+// Copyright 2020 RetailNext, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,8 +29,16 @@ import (
 
 var UploadSkipped = errors.New("upload skipped")
 
-func (c *Client) PutBlob(ctx context.Context, file paranoid.File, digests digest.ForUpload) error {
-	key := c.AbsoluteKeyForBlob(digests.ForRestore())
+func (c *awsClient) KeyStore() *KeyStore {
+	return &c.keyStore
+}
+
+func (c *awsClient) ForUpload() digest.ForUpload {
+	return &digest.ForUploadAWS{}
+}
+
+func (c *awsClient) PutBlob(ctx context.Context, file paranoid.File, digests digest.ForUpload) error {
+	key := c.keyStore.AbsoluteKeyForBlob(digests.ForRestore())
 	if exists, err := c.blobExists(ctx, digests); err != nil {
 		uploadErrors.Inc()
 		return err
@@ -52,10 +60,10 @@ func (c *Client) PutBlob(ctx context.Context, file paranoid.File, digests digest
 	return nil
 }
 
-func (c *Client) DownloadBlob(ctx context.Context, digests digest.ForRestore, file *os.File) error {
-	key := c.AbsoluteKeyForBlob(digests)
+func (c *awsClient) DownloadBlob(ctx context.Context, digests digest.ForRestore, file *os.File) error {
+	key := c.keyStore.AbsoluteKeyForBlob(digests)
 	getObjectInput := &s3.GetObjectInput{
-		Bucket: &c.bucket,
+		Bucket: &c.keyStore.bucket,
 		Key:    &key,
 	}
 	attempts := 0
@@ -82,14 +90,14 @@ func (c *Client) DownloadBlob(ctx context.Context, digests digest.ForRestore, fi
 	}
 }
 
-func (c *Client) blobExists(ctx context.Context, digests digest.ForUpload) (bool, error) {
-	key := c.AbsoluteKeyForBlob(digests.ForRestore())
+func (c *awsClient) blobExists(ctx context.Context, digests digest.ForUpload) (bool, error) {
+	key := c.keyStore.AbsoluteKeyForBlob(digests.ForRestore())
 	if c.existsCache.Get(digests.ForRestore()) {
 		return true, nil
 	}
 
 	headObjectInput := &s3.HeadObjectInput{
-		Bucket: &c.bucket,
+		Bucket: &c.keyStore.bucket,
 		Key:    &key,
 	}
 	headObjectOutput, err := c.s3Svc.HeadObjectWithContext(ctx, headObjectInput)
@@ -106,7 +114,7 @@ func (c *Client) blobExists(ctx context.Context, digests digest.ForUpload) (bool
 		zap.S().Infow("blob_exists_saw_delete_marker", "key", key)
 		return false, nil
 	}
-	expectedLength := digests.ContentLength()
+	expectedLength := digests.PartDigests().TotalLength()
 	actualLength := *headObjectOutput.ContentLength
 	if actualLength != expectedLength {
 		zap.S().Infow("blob_exists_saw_wrong_length", "key", key, "expected", expectedLength, "actual", actualLength)
