@@ -1,4 +1,4 @@
-// Copyright 2019 RetailNext, Inc.
+// Copyright 2020 RetailNext, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,7 +26,16 @@ import (
 	"github.com/retailnext/cassandrabackup/unixtime"
 )
 
-func (c *Client) keyWithPrefix(key string) string {
+type KeyStore struct {
+	bucket string
+	prefix string
+}
+
+func newKeyStore(bucket, prefix string) KeyStore {
+	return KeyStore{bucket, prefix}
+}
+
+func (c *KeyStore) keyWithPrefix(key string) string {
 	if c.prefix == "" {
 		return key
 	}
@@ -37,7 +46,7 @@ func (c *Client) keyWithPrefix(key string) string {
 	return buffer.String()
 }
 
-func (c *Client) AbsoluteKeyForBlob(digests digest.ForRestore) string {
+func (c *KeyStore) AbsoluteKeyForBlob(digests digest.ForRestore) string {
 	var buffer bytes.Buffer
 	encoded := digests.URLSafe()
 	buffer.WriteString("files/blake2b/")
@@ -49,21 +58,27 @@ func (c *Client) AbsoluteKeyForBlob(digests digest.ForRestore) string {
 	return c.keyWithPrefix(buffer.String())
 }
 
-func (c *Client) DecodeBlobKey(key string) ([]byte, error) {
+func (c *KeyStore) DecodeBlobKey(key string) (digest.ForRestore, error) {
+	var digests digest.ForRestore
+	var buffer bytes.Buffer
 	blobPrefix := c.keyWithPrefix("files/blake2b/")
 	encoded := strings.TrimPrefix(key, blobPrefix)
-	var buffer bytes.Buffer
 	buffer.WriteString(encoded[0:1])
 	buffer.WriteString(encoded[2:3])
 	buffer.WriteString(encoded[4:])
-	return base64.URLEncoding.DecodeString(buffer.String())
+	binary, err := base64.URLEncoding.DecodeString(buffer.String())
+	if err != nil {
+		return digests, err
+	}
+	err = digests.UnmarshalBinary(binary)
+	return digests, err
 }
 
-func (c *Client) absoluteKeyPrefixForClusters() string {
+func (c *KeyStore) absoluteKeyPrefixForClusters() string {
 	return c.keyWithPrefix("manifests/")
 }
 
-func (c *Client) absoluteKeyPrefixForClusterHosts(cluster string) string {
+func (c *KeyStore) absoluteKeyPrefixForClusterHosts(cluster string) string {
 	if cluster == "" {
 		panic("empty cluster")
 	}
@@ -72,14 +87,14 @@ func (c *Client) absoluteKeyPrefixForClusterHosts(cluster string) string {
 	return fmt.Sprintf("%s%s/", clustersPrefix, urlCluster)
 }
 
-func (c *Client) decodeCluster(key string) (string, error) {
+func (c *KeyStore) decodeCluster(key string) (string, error) {
 	clustersPrefix := c.absoluteKeyPrefixForClusters()
 	urlCluster := strings.TrimSuffix(strings.TrimPrefix(key, clustersPrefix), "/")
 	cluster, err := base64.URLEncoding.DecodeString(urlCluster)
 	return string(cluster), err
 }
 
-func (c *Client) decodeClusterHosts(prefixes []*s3.CommonPrefix) ([]manifests.NodeIdentity, []string) {
+func (c *KeyStore) decodeClusterHosts(prefixes []*s3.CommonPrefix) ([]manifests.NodeIdentity, []string) {
 	result := make([]manifests.NodeIdentity, 0, len(prefixes))
 	var bonus []string
 	skip := len(c.absoluteKeyPrefixForClusters())
@@ -110,7 +125,7 @@ func (c *Client) decodeClusterHosts(prefixes []*s3.CommonPrefix) ([]manifests.No
 	return result, bonus
 }
 
-func (c *Client) absoluteKeyPrefixForManifests(identity manifests.NodeIdentity) string {
+func (c *KeyStore) absoluteKeyPrefixForManifests(identity manifests.NodeIdentity) string {
 	if identity.Hostname == "" {
 		panic("empty Hostname")
 	}
@@ -119,14 +134,10 @@ func (c *Client) absoluteKeyPrefixForManifests(identity manifests.NodeIdentity) 
 	return fmt.Sprintf("%s%s/", clusterPrefix, urlHostname)
 }
 
-func (c *Client) absoluteKeyForManifestTimeRange(identity manifests.NodeIdentity, boundary unixtime.Seconds) string {
+func (c *KeyStore) absoluteKeyForManifestTimeRange(identity manifests.NodeIdentity, boundary unixtime.Seconds) string {
 	return c.absoluteKeyPrefixForManifests(identity) + boundary.Decimal()
 }
 
-func (c *Client) absoluteKeyForManifest(identity manifests.NodeIdentity, manifestKey manifests.ManifestKey) string {
+func (c *KeyStore) AbsoluteKeyForManifest(identity manifests.NodeIdentity, manifestKey manifests.ManifestKey) string {
 	return c.absoluteKeyPrefixForManifests(identity) + manifestKey.FileName()
-}
-
-func (c *Client) AbsoluteKeyForManifest(identity manifests.NodeIdentity, manifestKey manifests.ManifestKey) string {
-	return c.absoluteKeyForManifest(identity, manifestKey)
 }
