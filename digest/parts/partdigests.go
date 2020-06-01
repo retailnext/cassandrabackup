@@ -27,8 +27,8 @@ type PartDigests struct {
 	totalLength uint64
 }
 
-func (pd *PartDigests) TotalLength() uint64 {
-	return pd.totalLength
+func (pd *PartDigests) TotalLength() int64 {
+	return int64(pd.totalLength)
 }
 
 func (pd *PartDigests) Parts() int64 {
