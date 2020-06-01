@@ -20,8 +20,8 @@ import (
 	"github.com/retailnext/cassandrabackup/paranoid"
 )
 
-func GetUncached(ctx context.Context, file paranoid.File) (ForUpload, error) {
-	var result ForUpload
+func GetUncached(ctx context.Context, file paranoid.File, forUpload func() ForUpload) (ForUpload, error) {
+	result := forUpload()
 	err := result.populate(ctx, file)
 	return result, err
 }
