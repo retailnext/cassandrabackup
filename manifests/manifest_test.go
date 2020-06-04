@@ -54,8 +54,7 @@ func TestManifest(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	forUploadAWS := func() digest.ForUpload { return &digest.ForUploadAWS{} }
-	dgst, err := digest.GetUncached(context.Background(), parFile, forUploadAWS)
+	dgst, err := digest.GetUncached(context.Background(), parFile)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -25,24 +25,30 @@ import (
 
 type Cache struct {
 	c *cache.Cache
+	f ForUploadFactory
 }
 
 func OpenShared() *Cache {
 	cache.OpenShared()
 	return &Cache{
 		c: cache.Shared.Cache(cacheName),
+		f: &awsForUploadFactory{},
 	}
 }
 
 const cacheName = "digests"
 
-func (c *Cache) Get(ctx context.Context, file paranoid.File, forUpload func() ForUpload) (ForUpload, error) {
+func (c *Cache) CreateForUpload() ForUpload {
+	return c.f.CreateForUpload()
+}
+
+func (c *Cache) Get(ctx context.Context, file paranoid.File) (ForUpload, error) {
 	key := file.CacheKey()
 	var result ForUpload
 
 	getErr := c.c.Get(key, func(wrapped []byte) error {
 		if unwrapped := file.UnwrapCacheEntry(key, wrapped); unwrapped != nil {
-			maybeResult := forUpload()
+			maybeResult := c.CreateForUpload()
 			if err := maybeResult.UnmarshalBinary(unwrapped); err == nil {
 				result = maybeResult
 				return nil
@@ -61,13 +67,13 @@ func (c *Cache) Get(ctx context.Context, file paranoid.File, forUpload func() Fo
 		return result, nil
 	case cache.NotFound, cache.DoNotPromote:
 	default:
-		return forUpload(), getErr
+		return nil, getErr
 	}
 
 	t0 := time.Now()
-	result = forUpload()
+	result = c.CreateForUpload()
 	if populateErr := result.populate(ctx, file); populateErr != nil {
-		return forUpload(), populateErr
+		return nil, populateErr
 	}
 	missFilesTotal.Inc()
 	missBytesTotal.Add(float64(file.Len()))
@@ -79,7 +85,7 @@ func (c *Cache) Get(ctx context.Context, file paranoid.File, forUpload func() Fo
 	}
 	wrapped := file.WrapCacheEntry(marshalled)
 	if putErr := c.c.Put(key, wrapped); putErr != nil {
-		return forUpload(), putErr
+		return nil, putErr
 	}
 	return result, nil
 }

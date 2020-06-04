@@ -26,6 +26,16 @@ import (
 	"golang.org/x/crypto/blake2b"
 )
 
+type ForUploadFactory interface {
+	CreateForUpload() ForUpload
+}
+
+type awsForUploadFactory struct{}
+
+func (f *awsForUploadFactory) CreateForUpload() ForUpload {
+	return &awsForUpload{}
+}
+
 type ForUpload interface {
 	UnmarshalBinary(data []byte) error
 	MarshalBinary() ([]byte, error)
@@ -35,21 +45,21 @@ type ForUpload interface {
 	ForRestore() ForRestore
 }
 
-type ForUploadAWS struct {
+type awsForUpload struct {
 	blake2b          blake2bDigest
 	partDigestsMaker parts.PartDigestsMaker
 	partDigests      parts.PartDigests
 }
 
-func (u *ForUploadAWS) URLSafe() string {
+func (u *awsForUpload) URLSafe() string {
 	return base64.RawURLEncoding.EncodeToString(u.blake2b[:])
 }
 
-func (u *ForUploadAWS) PartDigests() *parts.PartDigests {
+func (u *awsForUpload) PartDigests() *parts.PartDigests {
 	return &u.partDigests
 }
 
-func (u *ForUploadAWS) onWrite(buf []byte, len int) {
+func (u *awsForUpload) onWrite(buf []byte, len int) {
 	if n, err := u.partDigestsMaker.Write(buf[0:len]); err != nil {
 		panic(err)
 	} else if n != len {
@@ -57,7 +67,7 @@ func (u *ForUploadAWS) onWrite(buf []byte, len int) {
 	}
 }
 
-func (u *ForUploadAWS) ForRestore() ForRestore {
+func (u *awsForUpload) ForRestore() ForRestore {
 	return ForRestore{
 		blake2b: u.blake2b,
 	}
@@ -122,7 +132,7 @@ func makeHash(ctx context.Context, file paranoid.File, u ForUpload) (hash.Hash, 
 	return blake2b512Hash, err
 }
 
-func (u *ForUploadAWS) populate(ctx context.Context, file paranoid.File) error {
+func (u *awsForUpload) populate(ctx context.Context, file paranoid.File) error {
 	u.partDigestsMaker.Reset(partSize)
 
 	blake2b512Hash, err := makeHash(ctx, file, u)
@@ -135,7 +145,7 @@ func (u *ForUploadAWS) populate(ctx context.Context, file paranoid.File) error {
 	return nil
 }
 
-func (u *ForUploadAWS) MarshalBinary() ([]byte, error) {
+func (u *awsForUpload) MarshalBinary() ([]byte, error) {
 	partDigests, err := u.partDigests.MarshalBinary()
 	if err != nil {
 		return nil, err
@@ -150,7 +160,7 @@ func (u *ForUploadAWS) MarshalBinary() ([]byte, error) {
 	return result, nil
 }
 
-func (u *ForUploadAWS) UnmarshalBinary(data []byte) error {
+func (u *awsForUpload) UnmarshalBinary(data []byte) error {
 	if len(data) < 64 {
 		return fmt.Errorf("invalid data")
 	}

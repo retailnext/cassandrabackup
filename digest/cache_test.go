@@ -52,6 +52,7 @@ func TestCacheAWS(t *testing.T) {
 
 	c := &Cache{
 		c: storage.Cache(cacheName),
+		f: &awsForUploadFactory{},
 	}
 
 	if err := ioutil.WriteFile(testFilePath, make([]byte, bigSize), 0644); err != nil {
@@ -66,8 +67,7 @@ func TestCacheAWS(t *testing.T) {
 		t.Fatalf("wrong len %d != %d", safeFile.Len(), bigSize)
 	}
 
-	forUploadAWS := func() ForUpload { return &ForUploadAWS{} }
-	entry1, err := c.Get(context.Background(), safeFile, forUploadAWS)
+	entry1, err := c.Get(context.Background(), safeFile)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,9 +96,10 @@ func TestCacheAWS(t *testing.T) {
 	}
 	c = &Cache{
 		c: storage.Cache(cacheName),
+		f: &awsForUploadFactory{},
 	}
 
-	entry2, err := c.Get(context.Background(), safeFile, forUploadAWS)
+	entry2, err := c.Get(context.Background(), safeFile)
 	if err != nil {
 		t.Fatal(err)
 	}

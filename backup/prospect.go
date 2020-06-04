@@ -38,7 +38,7 @@ func (p *processor) prospect() {
 
 	doneCh := p.ctx.Done()
 	for _, record := range records {
-		record.Digests, record.ProspectError = p.digestCache.Get(p.ctx, record.File, p.bucketClient.ForUpload)
+		record.Digests, record.ProspectError = p.digestCache.Get(p.ctx, record.File)
 
 		select {
 		case <-doneCh:

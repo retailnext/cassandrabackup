@@ -51,7 +51,6 @@ type Client interface {
 	ListClusters(ctx context.Context) ([]string, error)
 	DownloadBlob(ctx context.Context, digests digest.ForRestore, file *os.File) error
 	PutBlob(ctx context.Context, file paranoid.File, digests digest.ForUpload) error
-	ForUpload() digest.ForUpload
 	KeyStore() *KeyStore
 }
 

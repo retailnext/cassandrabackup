@@ -33,10 +33,6 @@ func (c *awsClient) KeyStore() *KeyStore {
 	return &c.keyStore
 }
 
-func (c *awsClient) ForUpload() digest.ForUpload {
-	return &digest.ForUploadAWS{}
-}
-
 func (c *awsClient) PutBlob(ctx context.Context, file paranoid.File, digests digest.ForUpload) error {
 	key := c.keyStore.AbsoluteKeyForBlob(digests.ForRestore())
 	if exists, err := c.blobExists(ctx, digests); err != nil {
