@@ -25,7 +25,7 @@ import (
 	"github.com/retailnext/cassandrabackup/paranoid"
 )
 
-func TestCache(t *testing.T) {
+func TestCacheAWS(t *testing.T) {
 	dir, err := ioutil.TempDir("", "")
 	if err != nil {
 		panic(err)
@@ -52,6 +52,7 @@ func TestCache(t *testing.T) {
 
 	c := &Cache{
 		c: storage.Cache(cacheName),
+		f: &awsForUploadFactory{},
 	}
 
 	if err := ioutil.WriteFile(testFilePath, make([]byte, bigSize), 0644); err != nil {
@@ -71,15 +72,17 @@ func TestCache(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if entry1.ContentLength() != safeFile.Len() {
-		t.Fatalf("wrong entry len %d != %d", entry1.ContentLength(), safeFile.Len())
+	pd1 := entry1.PartDigests()
+
+	if pd1.TotalLength() != safeFile.Len() {
+		t.Fatalf("wrong entry len %d != %d", pd1.TotalLength(), safeFile.Len())
 	}
 
-	if entry1.Parts() != 2 {
-		t.Fatalf("expected %d parts got %d", entry1.Parts(), safeFile.Len())
+	if pd1.Parts() != 2 {
+		t.Fatalf("expected %d parts got %d", pd1.Parts(), safeFile.Len())
 	}
 
-	if entry1.PartLength(1)+entry1.PartLength(2) != safeFile.Len() {
+	if pd1.PartLength(1)+pd1.PartLength(2) != safeFile.Len() {
 		t.Fatal("lengths don't add up")
 	}
 
@@ -93,6 +96,7 @@ func TestCache(t *testing.T) {
 	}
 	c = &Cache{
 		c: storage.Cache(cacheName),
+		f: &awsForUploadFactory{},
 	}
 
 	entry2, err := c.Get(context.Background(), safeFile)
@@ -100,11 +104,13 @@ func TestCache(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	pd2 := entry2.PartDigests()
+
 	if entry1.ForRestore() != entry2.ForRestore() {
 		t.Fatalf("restore entry mismatch %+v %+v", entry1, entry2)
 	}
 
-	if entry1.ContentLength() != entry2.ContentLength() {
+	if pd1.TotalLength() != pd2.TotalLength() {
 		t.Fatalf("restore entry mismatch %+v %+v", entry1, entry2)
 	}
 }

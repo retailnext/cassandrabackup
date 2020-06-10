@@ -37,7 +37,7 @@ import (
 type worker struct {
 	ctx    context.Context
 	cache  *digest.Cache
-	client *bucket.Client
+	client bucket.Client
 	target writefile.Config
 
 	limiter    chan struct{}

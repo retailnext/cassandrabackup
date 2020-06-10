@@ -25,12 +25,12 @@ import (
 	"go.uber.org/zap"
 )
 
-func (c *Client) ListManifests(ctx context.Context, identity manifests.NodeIdentity, startAfter, notAfter unixtime.Seconds) (manifests.ManifestKeys, error) {
+func (c *awsClient) ListManifests(ctx context.Context, identity manifests.NodeIdentity, startAfter, notAfter unixtime.Seconds) (manifests.ManifestKeys, error) {
 	lgr := zap.S()
-	prefixKey := c.absoluteKeyPrefixForManifests(identity)
-	startAfterKey := c.absoluteKeyForManifestTimeRange(identity, startAfter)
+	prefixKey := c.keyStore.absoluteKeyPrefixForManifests(identity)
+	startAfterKey := c.keyStore.absoluteKeyForManifestTimeRange(identity, startAfter)
 	input := &s3.ListObjectsV2Input{
-		Bucket:     &c.bucket,
+		Bucket:     &c.keyStore.bucket,
 		Delimiter:  aws.String("/"),
 		Prefix:     &prefixKey,
 		StartAfter: &startAfterKey,
@@ -38,7 +38,7 @@ func (c *Client) ListManifests(ctx context.Context, identity manifests.NodeIdent
 
 	notAfterKey := ""
 	if notAfter > 0 {
-		notAfterKey = c.absoluteKeyForManifestTimeRange(identity, notAfter)
+		notAfterKey = c.keyStore.absoluteKeyForManifestTimeRange(identity, notAfter)
 	}
 	attempts := 0
 	for {
@@ -79,18 +79,24 @@ func (c *Client) ListManifests(ctx context.Context, identity manifests.NodeIdent
 	}
 }
 
-func (c *Client) PutManifest(ctx context.Context, identity manifests.NodeIdentity, manifest manifests.Manifest) error {
+func (c *awsClient) PutManifest(ctx context.Context, identity manifests.NodeIdentity, manifest manifests.Manifest) error {
 	if manifest.ManifestType == manifests.ManifestTypeInvalid {
 		panic("invalid manifest type")
 	}
-	absoluteKey := c.absoluteKeyForManifest(identity, manifest.Key())
+	absoluteKey := c.keyStore.AbsoluteKeyForManifest(identity, manifest.Key())
 	return c.putDocument(ctx, absoluteKey, manifest)
 }
 
-func (c *Client) GetManifests(ctx context.Context, identity manifests.NodeIdentity, keys manifests.ManifestKeys) ([]manifests.Manifest, error) {
+func (c *awsClient) GetManifests(ctx context.Context, identity manifests.NodeIdentity, keys manifests.ManifestKeys) ([]manifests.Manifest, error) {
 	var results []manifests.Manifest
+	doneCh := ctx.Done()
 	for _, manifestKey := range keys {
-		absoluteKey := c.absoluteKeyForManifest(identity, manifestKey)
+		select {
+		case <-doneCh:
+			return nil, nil
+		default:
+		}
+		absoluteKey := c.keyStore.AbsoluteKeyForManifest(identity, manifestKey)
 		var m manifests.Manifest
 		if err := c.getDocument(ctx, absoluteKey, &m); err != nil {
 			zap.S().Errorw("get_manifest_error", "key", absoluteKey, "err", err)

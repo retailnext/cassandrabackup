@@ -1,4 +1,4 @@
-// Copyright 2019 RetailNext, Inc.
+// Copyright 2020 RetailNext, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func (c *Client) putDocument(ctx context.Context, absoluteKey string, v easyjson.Marshaler) error {
+func (c *awsClient) putDocument(ctx context.Context, absoluteKey string, v easyjson.Marshaler) error {
 	var encodeBuffer bytes.Buffer
 	gzipWriter := gzip.NewWriter(&encodeBuffer)
 	if _, err := easyjson.MarshalToWriter(v, gzipWriter); err != nil {
@@ -37,7 +37,7 @@ func (c *Client) putDocument(ctx context.Context, absoluteKey string, v easyjson
 	}
 
 	putObjectInput := &s3.PutObjectInput{
-		Bucket:               &c.bucket,
+		Bucket:               &c.keyStore.bucket,
 		Key:                  &absoluteKey,
 		ContentType:          aws.String("application/json"),
 		ContentEncoding:      aws.String("gzip"),
@@ -63,9 +63,9 @@ func (c *Client) putDocument(ctx context.Context, absoluteKey string, v easyjson
 	}
 }
 
-func (c *Client) getDocument(ctx context.Context, absoluteKey string, v easyjson.Unmarshaler) error {
+func (c *awsClient) getDocument(ctx context.Context, absoluteKey string, v easyjson.Unmarshaler) error {
 	getObjectInput := &s3.GetObjectInput{
-		Bucket: &c.bucket,
+		Bucket: &c.keyStore.bucket,
 		Key:    &absoluteKey,
 	}
 	attempts := 0

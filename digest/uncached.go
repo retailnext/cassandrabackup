@@ -21,7 +21,7 @@ import (
 )
 
 func GetUncached(ctx context.Context, file paranoid.File) (ForUpload, error) {
-	var result ForUpload
+	result := &awsForUpload{}
 	err := result.populate(ctx, file)
 	return result, err
 }
