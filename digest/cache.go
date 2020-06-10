@@ -16,11 +16,14 @@ package digest
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/retailnext/cassandrabackup/bucket/config"
 	"github.com/retailnext/cassandrabackup/cache"
 	"github.com/retailnext/cassandrabackup/paranoid"
+	"go.uber.org/zap"
 )
 
 type Cache struct {
@@ -28,11 +31,23 @@ type Cache struct {
 	f ForUploadFactory
 }
 
-func OpenShared() *Cache {
-	cache.OpenShared()
+func newForUploadFactory(config *config.Config) ForUploadFactory {
+	if config.Provider == "aws" {
+		return &awsForUploadFactory{}
+	} else if config.Provider == "google" {
+		return &googleForUploadFactory{}
+	} else {
+		err := fmt.Errorf("cloud provider not supported: %s", config.Provider)
+		zap.S().Fatalw("cloud_provider_error", "err", err)
+		return nil
+	}
+}
+
+func OpenShared(config *config.Config) *Cache {
+	cache.OpenShared(config)
 	return &Cache{
 		c: cache.Shared.Cache(cacheName),
-		f: &awsForUploadFactory{},
+		f: newForUploadFactory(config),
 	}
 }
 
@@ -72,7 +87,7 @@ func (c *Cache) Get(ctx context.Context, file paranoid.File) (ForUpload, error) 
 
 	t0 := time.Now()
 	result = c.CreateForUpload()
-	if populateErr := result.populate(ctx, file); populateErr != nil {
+	if populateErr := result.Populate(ctx, file); populateErr != nil {
 		return nil, populateErr
 	}
 	missFilesTotal.Inc()
