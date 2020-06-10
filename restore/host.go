@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/retailnext/cassandrabackup/bucket/config"
 	"github.com/retailnext/cassandrabackup/manifests"
 	"github.com/retailnext/cassandrabackup/nodeidentity"
 	"github.com/retailnext/cassandrabackup/restore/plan"
@@ -29,11 +30,11 @@ var NoSnapshotsFound = errors.New("no snapshots found for host")
 var NoBackupsFound = errors.New("no backups found for host")
 var ChangesDetected = errors.New("file changes detected")
 
-func RestoreHost(ctx context.Context) error {
-	identity := nodeidentity.ForRestore(ctx, hostCmdCluster, hostCmdHostname, hostCmdHostnamePattern)
+func RestoreHost(ctx context.Context, config *config.Config) error {
+	identity := nodeidentity.ForRestore(ctx, config, hostCmdCluster, hostCmdHostname, hostCmdHostnamePattern)
 	lgr := zap.S().With("identity", identity)
 
-	nodePlan, err := plan.Create(ctx, identity, unixtime.Seconds(*hostCmdNotBefore), unixtime.Seconds(*hostCmdNotAfter))
+	nodePlan, err := plan.Create(ctx, config, identity, unixtime.Seconds(*hostCmdNotBefore), unixtime.Seconds(*hostCmdNotAfter))
 	if err != nil {
 		return err
 	}
@@ -65,6 +66,6 @@ func RestoreHost(ctx context.Context) error {
 		return nil
 	}
 
-	w := newWorker("/var/lib/cassandra/data", true)
+	w := newWorker(config, "/var/lib/cassandra/data", true)
 	return w.restoreFiles(ctx, nodePlan.Files)
 }

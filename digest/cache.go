@@ -16,11 +16,14 @@ package digest
 
 import (
 	"context"
+	"fmt"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
+	"github.com/retailnext/cassandrabackup/bucket/config"
 	"github.com/retailnext/cassandrabackup/cache"
+	"github.com/retailnext/cassandrabackup/metrics"
 	"github.com/retailnext/cassandrabackup/paranoid"
+	"go.uber.org/zap"
 )
 
 type Cache struct {
@@ -28,11 +31,23 @@ type Cache struct {
 	f ForUploadFactory
 }
 
-func OpenShared() *Cache {
-	cache.OpenShared()
+func newForUploadFactory(config *config.Config) ForUploadFactory {
+	if config.IsAWS() {
+		return &awsForUploadFactory{}
+	} else if config.IsGCS() {
+		return &gcsForUploadFactory{}
+	} else {
+		err := fmt.Errorf("cloud provider not supported: %s", config.Provider)
+		zap.S().Fatalw("cloud_provider_error", "err", err)
+		return nil
+	}
+}
+
+func OpenShared(config *config.Config) *Cache {
+	cache.OpenShared(config)
 	return &Cache{
 		c: cache.Shared.Cache(cacheName),
-		f: &awsForUploadFactory{},
+		f: newForUploadFactory(config),
 	}
 }
 
@@ -62,8 +77,8 @@ func (c *Cache) Get(ctx context.Context, file paranoid.File) (ForUpload, error) 
 
 	switch getErr {
 	case nil:
-		hitFilesTotal.Inc()
-		hitBytesTotal.Add(float64(file.Len()))
+		metrics.Digest.HitFilesTotal.Inc()
+		metrics.Digest.HitBytesTotal.Add(float64(file.Len()))
 		return result, nil
 	case cache.NotFound, cache.DoNotPromote:
 	default:
@@ -72,12 +87,12 @@ func (c *Cache) Get(ctx context.Context, file paranoid.File) (ForUpload, error) 
 
 	t0 := time.Now()
 	result = c.CreateForUpload()
-	if populateErr := result.populate(ctx, file); populateErr != nil {
+	if populateErr := result.Populate(ctx, file); populateErr != nil {
 		return nil, populateErr
 	}
-	missFilesTotal.Inc()
-	missBytesTotal.Add(float64(file.Len()))
-	missSecondsTotal.Add(time.Since(t0).Seconds())
+	metrics.Digest.MissFilesTotal.Inc()
+	metrics.Digest.MissBytesTotal.Add(float64(file.Len()))
+	metrics.Digest.MissSecondsTotal.Add(time.Since(t0).Seconds())
 
 	marshalled, marshalErr := result.MarshalBinary()
 	if marshalErr != nil {
@@ -88,45 +103,4 @@ func (c *Cache) Get(ctx context.Context, file paranoid.File) (ForUpload, error) 
 		return nil, putErr
 	}
 	return result, nil
-}
-
-var (
-	hitFilesTotal = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "cassandrabackup",
-		Subsystem: "digestcache",
-		Name:      "hit_files_total",
-		Help:      "Number of digest requests that were a cache hit.",
-	})
-	hitBytesTotal = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "cassandrabackup",
-		Subsystem: "digestcache",
-		Name:      "hit_bytes_total",
-		Help:      "Total file size of digest requests processed that were a cache hit.",
-	})
-	missFilesTotal = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "cassandrabackup",
-		Subsystem: "digestcache",
-		Name:      "miss_files_total",
-		Help:      "Number of digest requests that were a cache miss.",
-	})
-	missBytesTotal = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "cassandrabackup",
-		Subsystem: "digestcache",
-		Name:      "miss_bytes_total",
-		Help:      "Total file size of digest requests processed that were a cache miss.",
-	})
-	missSecondsTotal = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "cassandrabackup",
-		Subsystem: "digestcache",
-		Name:      "miss_seconds_total",
-		Help:      "Total time spent calculating new digests.",
-	})
-)
-
-func init() {
-	prometheus.MustRegister(hitBytesTotal)
-	prometheus.MustRegister(hitFilesTotal)
-	prometheus.MustRegister(missBytesTotal)
-	prometheus.MustRegister(missFilesTotal)
-	prometheus.MustRegister(missSecondsTotal)
 }
