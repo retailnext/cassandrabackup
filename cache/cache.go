@@ -25,9 +25,9 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/retailnext/cassandrabackup/bucket/config"
 	"go.etcd.io/bbolt"
 	"go.uber.org/zap"
-	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 var (
@@ -38,8 +38,6 @@ var (
 var (
 	Shared *Storage
 	once   sync.Once
-
-	sharedCacheFile = kingpin.Flag("cache-file", "Location of local cache file.").Required().String()
 )
 
 func Open(path string, mode os.FileMode) (*Storage, error) {
@@ -93,9 +91,9 @@ func ensureFileOwnership(path string) {
 	}
 }
 
-func OpenShared() {
+func OpenShared(config *config.Config) {
 	once.Do(func() {
-		c, err := Open(*sharedCacheFile, 0644)
+		c, err := Open(config.SharedCacheFile, 0644)
 		if err != nil {
 			panic(err)
 		}

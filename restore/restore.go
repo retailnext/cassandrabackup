@@ -27,6 +27,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/retailnext/cassandrabackup/bucket"
+	"github.com/retailnext/cassandrabackup/bucket/config"
 	"github.com/retailnext/cassandrabackup/digest"
 	"github.com/retailnext/cassandrabackup/paranoid"
 	"github.com/retailnext/cassandrabackup/restore/plan"
@@ -46,7 +47,7 @@ type worker struct {
 	lock       sync.Mutex
 }
 
-func newWorker(directory string, ensureOwnership bool) *worker {
+func newWorker(config *config.Config, directory string, ensureOwnership bool) *worker {
 	w := worker{
 		target: writefile.Config{
 			Directory:                directory,
@@ -80,8 +81,8 @@ func newWorker(directory string, ensureOwnership bool) *worker {
 		w.target.FileGID = gid
 	}
 
-	w.cache = digest.OpenShared()
-	w.client = bucket.OpenShared()
+	w.cache = digest.OpenShared(config)
+	w.client = bucket.OpenShared(config)
 
 	return &w
 }

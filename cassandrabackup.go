@@ -21,9 +21,11 @@ import (
 	"os/signal"
 	"runtime/pprof"
 
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/retailnext/cassandrabackup/backup"
 	"github.com/retailnext/cassandrabackup/bucket"
+	"github.com/retailnext/cassandrabackup/bucket/config"
 	"github.com/retailnext/cassandrabackup/cache"
 	"github.com/retailnext/cassandrabackup/manifests"
 	"github.com/retailnext/cassandrabackup/periodic"
@@ -118,6 +120,15 @@ var (
 
 	listHostsCmd        = listCmd.Command("hosts", "List hosts in a cluster")
 	listHostsCmdCluster = listHostsCmd.Flag("cluster", "Cluster name").Required().String()
+	listClustersCmd     = listCmd.Command("clusters", "List clusters")
+
+	bucketName             = kingpin.Flag("s3-bucket", "S3 bucket name.").Required().String()
+	bucketRegion           = kingpin.Flag("s3-region", "S3 bucket region.").Envar("AWS_REGION").Required().String()
+	bucketKeyPrefix        = kingpin.Flag("s3-key-prefix", "Set the prefix for files in the S3 bucket").Default("/").String()
+	bucketBlobStorageClass = kingpin.Flag("s3-storage-class", "Set the storage class for files in S3").Default(s3.StorageClassStandardIa).String()
+	provider               = kingpin.Flag("cloud-provider", "Cloud provider.").Required().String()
+
+	sharedCacheFile = kingpin.Flag("cache-file", "Location of local cache file.").Required().String()
 )
 
 func main() {
@@ -144,9 +155,18 @@ func main() {
 		}
 	}()
 
+	config := &config.Config{
+		Provider:               *provider,
+		BucketName:             *bucketName,
+		BucketRegion:           *bucketRegion,
+		BucketKeyPrefix:        *bucketKeyPrefix,
+		BucketBlobStorageClass: *bucketBlobStorageClass,
+		SharedCacheFile:        *sharedCacheFile,
+	}
+
 	switch cmd {
 	case "backup snapshot":
-		err := backup.DoSnapshotBackup(ctx)
+		err := backup.DoSnapshotBackup(ctx, config)
 		if err == context.Canceled {
 			return
 		}
@@ -154,7 +174,7 @@ func main() {
 			lgr.Fatalw("backup_error", "err", err)
 		}
 	case "backup incremental":
-		err := backup.DoIncremental(ctx)
+		err := backup.DoIncremental(ctx, config)
 		if err == context.Canceled {
 			return
 		}
@@ -162,7 +182,7 @@ func main() {
 			lgr.Fatalw("backup_error", "err", err)
 		}
 	case "backup run":
-		err := periodic.Main(ctx)
+		err := periodic.Main(ctx, config)
 		if err == context.Canceled {
 			return
 		}
@@ -170,7 +190,7 @@ func main() {
 			lgr.Fatalw("backup_error", "err", err)
 		}
 	case "restore host":
-		err := restore.RestoreHost(ctx)
+		err := restore.RestoreHost(ctx, config)
 		if err == context.Canceled {
 			return
 		}
@@ -178,7 +198,7 @@ func main() {
 			lgr.Fatalw("restore_error", "err", err)
 		}
 	case "restore cluster":
-		err := restore.RestoreCluster(ctx)
+		err := restore.RestoreCluster(ctx, config)
 		if err == context.Canceled {
 			return
 		}
@@ -191,7 +211,7 @@ func main() {
 			Cluster:  *listManifestsCmdCluster,
 			Hostname: *listManifestsCmdHostname,
 		}
-		bkt := bucket.OpenShared()
+		bkt := bucket.OpenShared(config)
 		manifestKeys, err := bkt.ListManifests(ctx, identity, unixtime.Seconds(*listManifestsCmdNotBefore), unixtime.Seconds(*listManifestsCmdNotAfter))
 		if err != nil {
 			lgr.Fatalw("list_manifests_error", "err", err)
@@ -201,13 +221,23 @@ func main() {
 		}
 	case "list hosts":
 		lgr := zap.S()
-		bkt := bucket.OpenShared()
+		bkt := bucket.OpenShared(config)
 		results, err := bkt.ListHostNames(ctx, *listHostsCmdCluster)
 		if err != nil {
 			lgr.Fatalw("list_hosts_error", "err", err)
 		}
 		for _, ni := range results {
 			lgr.Infow("got_host", "identity", ni)
+		}
+	case "list clusters":
+		lgr := zap.S()
+		bkt := bucket.OpenShared(config)
+		results, err := bkt.ListClusters(ctx)
+		if err != nil {
+			lgr.Fatalw("list_clusters_error", "err", err)
+		}
+		for _, cluster := range results {
+			lgr.Infow("got_cluster", "cluster", cluster)
 		}
 	default:
 		lgr.Fatalw("unhandled_command", "cmd", cmd)

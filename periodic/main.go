@@ -19,13 +19,14 @@ import (
 	"time"
 
 	"github.com/retailnext/cassandrabackup/backup"
+	"github.com/retailnext/cassandrabackup/bucket/config"
 	"go.uber.org/zap"
 )
 
 const snapshotEvery = 1 * time.Hour
 const incrementalEvery = 5 * time.Minute
 
-func Main(ctx context.Context) error {
+func Main(ctx context.Context, config *config.Config) error {
 	registerMetrics()
 	lgr := zap.S()
 
@@ -49,7 +50,7 @@ DONE:
 		if lastIncrementalAt.Before(now.Add(-incrementalEvery)) {
 			backupInProgressGauges.WithLabelValues("incremental").Set(1)
 			lgr.Infow("starting_backup", "type", "incremental")
-			err = backup.DoIncremental(ctx)
+			err = backup.DoIncremental(ctx, config)
 			backupInProgressGauges.WithLabelValues("incremental").Set(0)
 			now = time.Now()
 			if err == nil {
@@ -67,7 +68,7 @@ DONE:
 		} else if lastSnapshotAt.Before(now.Add(-snapshotEvery)) {
 			backupInProgressGauges.WithLabelValues("snapshot").Set(1)
 			lgr.Infow("starting_backup", "type", "snapshot")
-			err = backup.DoSnapshotBackup(ctx)
+			err = backup.DoSnapshotBackup(ctx, config)
 			backupInProgressGauges.WithLabelValues("snapshot").Set(0)
 			now = time.Now()
 			if err == nil {
