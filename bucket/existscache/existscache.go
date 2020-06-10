@@ -1,4 +1,4 @@
-// Copyright 2019 RetailNext, Inc.
+// Copyright 2020 RetailNext, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package bucket
+package existscache
 
 import (
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/retailnext/cassandrabackup/cache"
 	"github.com/retailnext/cassandrabackup/digest"
+	"github.com/retailnext/cassandrabackup/metrics"
 	"github.com/retailnext/cassandrabackup/unixtime"
 	"go.uber.org/zap"
 )
@@ -28,6 +28,12 @@ const objectLockSafetyMargin = 12 * time.Hour
 
 type ExistsCache struct {
 	cache *cache.Cache
+}
+
+func NewExistsCache() *ExistsCache {
+	return &ExistsCache{
+		cache: cache.Shared.Cache("bucket_exists"),
+	}
 }
 
 func (e *ExistsCache) Get(restore digest.ForRestore) bool {
@@ -45,7 +51,7 @@ func (e *ExistsCache) Get(restore digest.ForRestore) bool {
 			exists = true
 			return nil
 		} else {
-			existsCacheLockTimeMisses.Inc()
+			metrics.ExistsCache.ExistsCacheLockTimeMisses.Inc()
 		}
 		return cache.DoNotPromote
 	})
@@ -73,15 +79,4 @@ func (e *ExistsCache) Put(restore digest.ForRestore, lockedUntil time.Time) {
 	if err != nil {
 		zap.S().Warnw("blob_exists_cache_put_error", "key", restore, "err", err)
 	}
-}
-
-var existsCacheLockTimeMisses = prometheus.NewCounter(prometheus.CounterOpts{
-	Namespace: "cassandrabackup",
-	Subsystem: "bucket_exists_cache",
-	Name:      "lock_time_misses_total",
-	Help:      "Number of exists cache misses due to expired/future lock time.",
-})
-
-func init() {
-	prometheus.MustRegister(existsCacheLockTimeMisses)
 }

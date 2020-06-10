@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package digest
+package blake
 
 import (
 	"encoding/base64"
@@ -26,19 +26,19 @@ import (
 
 const blake2bDigestLength = 64
 
-type blake2bDigest [blake2bDigestLength]byte
+type Blake2bDigest [blake2bDigestLength]byte
 
-func (d blake2bDigest) URLSafe() string {
+func (d Blake2bDigest) URLSafe() string {
 	return base64.URLEncoding.EncodeToString(d[:])
 }
 
-func (d blake2bDigest) MarshalText() ([]byte, error) {
+func (d Blake2bDigest) MarshalText() ([]byte, error) {
 	text := make([]byte, base64.StdEncoding.EncodedLen(blake2bDigestLength))
 	base64.StdEncoding.Encode(text, d[:])
 	return text, nil
 }
 
-func (d *blake2bDigest) UnmarshalText(text []byte) error {
+func (d *Blake2bDigest) UnmarshalText(text []byte) error {
 	if len(text) != base64.StdEncoding.EncodedLen(blake2bDigestLength) {
 		return fmt.Errorf("invalid text")
 	}
@@ -52,11 +52,11 @@ func (d *blake2bDigest) UnmarshalText(text []byte) error {
 	return nil
 }
 
-func (d blake2bDigest) MarshalEasyJSON(w *jwriter.Writer) {
+func (d Blake2bDigest) MarshalEasyJSON(w *jwriter.Writer) {
 	w.Base64Bytes(d[:])
 }
 
-func (d *blake2bDigest) UnmarshalEasyJSON(r *jlexer.Lexer) {
+func (d *Blake2bDigest) UnmarshalEasyJSON(r *jlexer.Lexer) {
 	b := r.Bytes()
 	if len(b) != blake2bDigestLength {
 		r.AddNonFatalError(errors.New("invalid length"))
@@ -65,13 +65,13 @@ func (d *blake2bDigest) UnmarshalEasyJSON(r *jlexer.Lexer) {
 	}
 }
 
-func (d blake2bDigest) MarshalBinary() ([]byte, error) {
+func (d Blake2bDigest) MarshalBinary() ([]byte, error) {
 	result := make([]byte, blake2bDigestLength)
 	copy(result, d[:])
 	return result, nil
 }
 
-func (d *blake2bDigest) UnmarshalBinary(data []byte) error {
+func (d *Blake2bDigest) UnmarshalBinary(data []byte) error {
 	if len(data) != blake2bDigestLength {
 		return blake2bDigestInvalidLength
 	}
@@ -81,7 +81,7 @@ func (d *blake2bDigest) UnmarshalBinary(data []byte) error {
 
 var blake2bDigestInvalidLength = errors.New("blake2bDigest: invalid length")
 
-func (d *blake2bDigest) populate(h hash.Hash) {
+func (d *Blake2bDigest) Populate(h hash.Hash) {
 	sum := h.Sum(nil)
 	if len(sum) != blake2bDigestLength {
 		panic("bad hash.Sum() length")
