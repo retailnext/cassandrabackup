@@ -25,9 +25,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/retailnext/cassandrabackup/bucket"
+	"github.com/retailnext/cassandrabackup/bucket/config"
 	"github.com/retailnext/cassandrabackup/digest"
+	"github.com/retailnext/cassandrabackup/metrics"
 	"github.com/retailnext/cassandrabackup/paranoid"
 	"github.com/retailnext/cassandrabackup/restore/plan"
 	"github.com/retailnext/writefile"
@@ -46,7 +47,7 @@ type worker struct {
 	lock       sync.Mutex
 }
 
-func newWorker(directory string, ensureOwnership bool) *worker {
+func newWorker(cfg config.Config, directory string, ensureOwnership bool) *worker {
 	w := worker{
 		target: writefile.Config{
 			Directory:                directory,
@@ -80,14 +81,14 @@ func newWorker(directory string, ensureOwnership bool) *worker {
 		w.target.FileGID = gid
 	}
 
-	w.cache = digest.OpenShared()
-	w.client = bucket.OpenShared()
+	w.cache = digest.OpenShared(cfg)
+	w.client = bucket.OpenShared(cfg)
 
 	return &w
 }
 
 func (w *worker) restoreFiles(ctx context.Context, files map[string]digest.ForRestore) error {
-	registerMetrics()
+	metrics.Restore.RegisterMetrics()
 	w.ctx = ctx
 	w.limiter = make(chan struct{}, 4)
 
@@ -132,8 +133,8 @@ func (w *worker) restoreFile(name string, forRestore digest.ForRestore) {
 	if maybeFile, maybeFileErr := paranoid.NewFile(path); maybeFileErr == nil {
 		if forUpload, forUploadErr := w.cache.Get(w.ctx, maybeFile); forUploadErr == nil {
 			if forUpload.ForRestore() == forRestore {
-				skippedBytes.Add(float64(maybeFile.Len()))
-				skippedFiles.Inc()
+				metrics.Restore.SkippedBytes.Add(float64(maybeFile.Len()))
+				metrics.Restore.SkippedFiles.Inc()
 				return
 			} else {
 				lgr.Infow("existing_file_digest_mismatch", "path", path)
@@ -145,19 +146,19 @@ func (w *worker) restoreFile(name string, forRestore digest.ForRestore) {
 
 	err = w.target.WriteFile(name, func(file *os.File) error {
 		start := time.Now()
-		downloadErr := w.client.DownloadBlob(w.ctx, forRestore, file)
+		downloadErr := bucket.GetBlob(w.ctx, w.client, forRestore, file)
 		if downloadErr != nil {
-			downloadErrors.Inc()
+			metrics.Restore.DownloadErrors.Inc()
 			return downloadErr
 		}
 
 		d := time.Since(start)
-		downloadFiles.Inc()
-		downloadSeconds.Add(d.Seconds())
+		metrics.Restore.DownloadFiles.Inc()
+		metrics.Restore.DownloadSeconds.Add(d.Seconds())
 		if info, infoErr := file.Stat(); infoErr != nil {
 			lgr.Warnw("stat_error", "err", err)
 		} else {
-			downloadBytes.Add(float64(info.Size()))
+			metrics.Restore.DownloadBytes.Add(float64(info.Size()))
 			// Prime the cache with this file since it's still in the kernel block cache
 			pfile := paranoid.NewFileFromInfo(file.Name(), info)
 			_, _ = w.cache.Get(w.ctx, pfile)
@@ -168,58 +169,6 @@ func (w *worker) restoreFile(name string, forRestore digest.ForRestore) {
 	if err == nil {
 		lgr.Infow("restored_file", "path", name)
 	}
-}
-
-var (
-	skippedFiles = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "cassandrabackup",
-		Subsystem: "restore",
-		Name:      "skipped_files_total",
-		Help:      "Number of files skipped during restore due to already being on disk.",
-	})
-	skippedBytes = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "cassandrabackup",
-		Subsystem: "restore",
-		Name:      "skipped_bytes_total",
-		Help:      "Number of bytes skipped during restore due to already being on disk.",
-	})
-	downloadFiles = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "cassandrabackup",
-		Subsystem: "restore",
-		Name:      "download_files_total",
-		Help:      "Number of files downloaded during the restore.",
-	})
-	downloadBytes = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "cassandrabackup",
-		Subsystem: "restore",
-		Name:      "download_bytes_total",
-		Help:      "Number of bytes downloaded during the restore.",
-	})
-	downloadErrors = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "cassandrabackup",
-		Subsystem: "restore",
-		Name:      "download_errors_total",
-		Help:      "Number files that failed to download during the restore.",
-	})
-	downloadSeconds = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "cassandrabackup",
-		Subsystem: "restore",
-		Name:      "download_seconds_total",
-		Help:      "Time spent downloading files during the restore.",
-	})
-
-	registerOnce sync.Once
-)
-
-func registerMetrics() {
-	registerOnce.Do(func() {
-		prometheus.MustRegister(skippedFiles)
-		prometheus.MustRegister(skippedBytes)
-		prometheus.MustRegister(downloadSeconds)
-		prometheus.MustRegister(downloadFiles)
-		prometheus.MustRegister(downloadBytes)
-		prometheus.MustRegister(downloadErrors)
-	})
 }
 
 type downloadPlan struct {

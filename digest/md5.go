@@ -1,4 +1,4 @@
-// Copyright 2019 RetailNext, Inc.
+// Copyright 2020 RetailNext, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,14 +15,16 @@
 package digest
 
 import (
-	"context"
-
-	"github.com/retailnext/cassandrabackup/bucket/config"
-	"github.com/retailnext/cassandrabackup/paranoid"
+	"crypto/md5"
+	"hash"
 )
 
-func GetUncached(ctx context.Context, file paranoid.File) (ForUpload, error) {
-	var result ForUpload
-	err := result.populate(ctx, file, config.CloudProviderAWS)
-	return result, err
+type md5Digest [md5.Size]byte
+
+func (d *md5Digest) populate(h hash.Hash) {
+	sum := h.Sum(nil)
+	if len(sum) != md5.Size {
+		panic("bad md5 length")
+	}
+	copy(d[:], sum)
 }

@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"github.com/retailnext/cassandrabackup/bucket"
+	"github.com/retailnext/cassandrabackup/bucket/config"
 	"github.com/retailnext/cassandrabackup/digest"
 	"github.com/retailnext/cassandrabackup/manifests"
 	"github.com/retailnext/cassandrabackup/unixtime"
@@ -35,10 +36,10 @@ type NodePlan struct {
 	SelectedManifests manifests.ManifestKeys
 }
 
-func Create(ctx context.Context, identity manifests.NodeIdentity, startAfter, notAfter unixtime.Seconds) (NodePlan, error) {
+func Create(ctx context.Context, cfg config.Config, identity manifests.NodeIdentity, startAfter, notAfter unixtime.Seconds) (NodePlan, error) {
 	lgr := zap.S().With("identity", identity)
 
-	nodeManifests, err := getManifests(ctx, identity, startAfter, notAfter)
+	nodeManifests, err := getManifests(ctx, cfg, identity, startAfter, notAfter)
 	if err != nil {
 		lgr.Errorw("get_manifests_error", "err", err)
 		return NodePlan{}, err
@@ -47,8 +48,8 @@ func Create(ctx context.Context, identity manifests.NodeIdentity, startAfter, no
 	return assemble(nodeManifests), nil
 }
 
-func getManifests(ctx context.Context, identity manifests.NodeIdentity, startAfter, notAfter unixtime.Seconds) ([]manifests.Manifest, error) {
-	client := bucket.OpenShared()
+func getManifests(ctx context.Context, cfg config.Config, identity manifests.NodeIdentity, startAfter, notAfter unixtime.Seconds) ([]manifests.Manifest, error) {
+	client := bucket.OpenShared(cfg)
 
 	keys, err := client.ListManifests(ctx, identity, startAfter, notAfter)
 	if err != nil {
@@ -69,7 +70,7 @@ func getManifests(ctx context.Context, identity manifests.NodeIdentity, startAft
 	if len(keys) == 0 {
 		return nil, nil
 	}
-	return client.GetManifests(ctx, identity, keys)
+	return bucket.GetManifests(ctx, client, identity, keys)
 }
 
 func assemble(nodeManifests []manifests.Manifest) NodePlan {

@@ -16,16 +16,19 @@ package digest
 
 import (
 	"context"
+	"crypto/md5"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
+	"github.com/retailnext/cassandrabackup/bucket/config"
 	"github.com/retailnext/cassandrabackup/cache"
 	"github.com/retailnext/cassandrabackup/paranoid"
 )
 
-func TestCacheAWS(t *testing.T) {
+func TestCache(t *testing.T) {
 	dir, err := ioutil.TempDir("", "")
 	if err != nil {
 		panic(err)
@@ -52,10 +55,12 @@ func TestCacheAWS(t *testing.T) {
 
 	c := &Cache{
 		c: storage.Cache(cacheName),
-		f: &awsForUploadFactory{},
+		p: config.CloudProviderAWS,
 	}
 
-	if err := ioutil.WriteFile(testFilePath, make([]byte, bigSize), 0644); err != nil {
+	data := make([]byte, bigSize)
+
+	if err := ioutil.WriteFile(testFilePath, data, 0644); err != nil {
 		panic(err)
 	}
 
@@ -72,17 +77,15 @@ func TestCacheAWS(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pd1 := entry1.PartDigests()
-
-	if pd1.TotalLength() != safeFile.Len() {
-		t.Fatalf("wrong entry len %d != %d", pd1.TotalLength(), safeFile.Len())
+	if entry1.ContentLength() != safeFile.Len() {
+		t.Fatalf("wrong entry len %d != %d", entry1.ContentLength(), safeFile.Len())
 	}
 
-	if pd1.Parts() != 2 {
-		t.Fatalf("expected %d parts got %d", pd1.Parts(), safeFile.Len())
+	if entry1.Parts() != 2 {
+		t.Fatalf("expected %d parts got %d", entry1.Parts(), safeFile.Len())
 	}
 
-	if pd1.PartLength(1)+pd1.PartLength(2) != safeFile.Len() {
+	if entry1.PartLength(1)+entry1.PartLength(2) != safeFile.Len() {
 		t.Fatal("lengths don't add up")
 	}
 
@@ -96,7 +99,7 @@ func TestCacheAWS(t *testing.T) {
 	}
 	c = &Cache{
 		c: storage.Cache(cacheName),
-		f: &awsForUploadFactory{},
+		p: config.CloudProviderAWS,
 	}
 
 	entry2, err := c.Get(context.Background(), safeFile)
@@ -104,13 +107,77 @@ func TestCacheAWS(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pd2 := entry2.PartDigests()
+	if !reflect.DeepEqual(entry1, entry2) {
+		t.Fatalf("cache entry mismatch %+v %+v", entry1, entry2)
+	}
 
 	if entry1.ForRestore() != entry2.ForRestore() {
 		t.Fatalf("restore entry mismatch %+v %+v", entry1, entry2)
 	}
 
-	if pd1.TotalLength() != pd2.TotalLength() {
+	if entry1.ContentLength() != entry2.ContentLength() {
+		t.Fatalf("part digest restore mismatch %+v %+v", entry1, entry2)
+	}
+
+	if entry1.ContentLength() != entry2.ContentLength() {
 		t.Fatalf("restore entry mismatch %+v %+v", entry1, entry2)
+	}
+
+	if closeErr := storage.Close(); closeErr != nil {
+		panic(closeErr)
+	}
+
+	storage, err = cache.Open(cachePath, 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c = &Cache{
+		c: storage.Cache(cacheName),
+		p: config.CloudProviderGoogle,
+	}
+
+	entry3, err := c.Get(context.Background(), safeFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if closeErr := storage.Close(); closeErr != nil {
+		panic(closeErr)
+	}
+
+	storage, err = cache.Open(cachePath, 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c = &Cache{
+		c: storage.Cache(cacheName),
+		p: config.CloudProviderGoogle,
+	}
+
+	entry4, err := c.Get(context.Background(), safeFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if entry1.ForRestore() != entry3.ForRestore() {
+		t.Fatalf("restore entry mismatch %+v %+v", entry1, entry3)
+	}
+
+	if entry1.ContentLength() != entry3.ContentLength() {
+		t.Fatalf("restore entry mismatch %+v %+v", entry1, entry3)
+	}
+
+	if !reflect.DeepEqual(entry3, entry4) {
+		t.Fatalf("cache entry mismatch %+v %+v", entry3, entry4)
+	}
+
+	hash := md5.New()
+	_, err = hash.Write(data)
+	if err != nil {
+		panic(err)
+	}
+	m := hash.Sum(nil)
+	if !reflect.DeepEqual(m, entry3.MD5()) {
+		t.Fatalf("calculated MD5 %+v don't match %+v", m, entry3.MD5())
 	}
 }

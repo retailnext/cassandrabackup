@@ -12,41 +12,41 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package bucket
+package keystore
 
 import (
 	"bytes"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/retailnext/cassandrabackup/digest"
 	"github.com/retailnext/cassandrabackup/manifests"
 	"github.com/retailnext/cassandrabackup/unixtime"
 )
 
 type KeyStore struct {
-	bucket string
-	prefix string
+	Bucket string
+	Prefix string
 }
 
-func newKeyStore(bucket, prefix string) KeyStore {
+func NewKeyStore(bucket, prefix string) KeyStore {
 	return KeyStore{bucket, prefix}
 }
 
-func (c *KeyStore) keyWithPrefix(key string) string {
-	if c.prefix == "" {
+func (c KeyStore) keyWithPrefix(key string) string {
+	if c.Prefix == "" {
 		return key
 	}
 	var buffer bytes.Buffer
-	buffer.WriteString(c.prefix)
+	buffer.WriteString(c.Prefix)
 	buffer.WriteString("/")
 	buffer.WriteString(key)
 	return buffer.String()
 }
 
-func (c *KeyStore) AbsoluteKeyForBlob(digests digest.ForRestore) string {
+func (c KeyStore) AbsoluteKeyForBlob(digests digest.ForRestore) string {
 	var buffer bytes.Buffer
 	encoded := digests.URLSafe()
 	buffer.WriteString("files/blake2b/")
@@ -58,7 +58,7 @@ func (c *KeyStore) AbsoluteKeyForBlob(digests digest.ForRestore) string {
 	return c.keyWithPrefix(buffer.String())
 }
 
-func (c *KeyStore) DecodeBlobKey(key string) (digest.ForRestore, error) {
+func (c KeyStore) DecodeBlobKey(key string) (digest.ForRestore, error) {
 	var digests digest.ForRestore
 	var buffer bytes.Buffer
 	blobPrefix := c.keyWithPrefix("files/blake2b/")
@@ -74,70 +74,61 @@ func (c *KeyStore) DecodeBlobKey(key string) (digest.ForRestore, error) {
 	return digests, err
 }
 
-func (c *KeyStore) absoluteKeyPrefixForClusters() string {
+func (c KeyStore) AbsoluteKeyPrefixForClusters() string {
 	return c.keyWithPrefix("manifests/")
 }
 
-func (c *KeyStore) absoluteKeyPrefixForClusterHosts(cluster string) string {
+func (c KeyStore) AbsoluteKeyPrefixForClusterHosts(cluster string) string {
 	if cluster == "" {
 		panic("empty cluster")
 	}
 	urlCluster := base64.URLEncoding.EncodeToString([]byte(cluster))
-	clustersPrefix := c.absoluteKeyPrefixForClusters()
+	clustersPrefix := c.AbsoluteKeyPrefixForClusters()
 	return fmt.Sprintf("%s%s/", clustersPrefix, urlCluster)
 }
 
-func (c *KeyStore) decodeCluster(key string) (string, error) {
-	clustersPrefix := c.absoluteKeyPrefixForClusters()
+func (c KeyStore) DecodeCluster(key string) (string, error) {
+	clustersPrefix := c.AbsoluteKeyPrefixForClusters()
 	urlCluster := strings.TrimSuffix(strings.TrimPrefix(key, clustersPrefix), "/")
 	cluster, err := base64.URLEncoding.DecodeString(urlCluster)
 	return string(cluster), err
 }
 
-func (c *KeyStore) decodeClusterHosts(prefixes []*s3.CommonPrefix) ([]manifests.NodeIdentity, []string) {
-	result := make([]manifests.NodeIdentity, 0, len(prefixes))
-	var bonus []string
-	skip := len(c.absoluteKeyPrefixForClusters())
-	for _, obj := range prefixes {
-		raw := *obj.Prefix
-		trimmed := raw[skip:]
-		parts := strings.Split(trimmed, "/")
-		if len(parts) != 3 {
-			bonus = append(bonus, raw)
-			continue
-		}
-		cluster, err := base64.URLEncoding.DecodeString(parts[0])
-		if err != nil {
-			bonus = append(bonus, raw)
-			continue
-		}
-		hostname, err := base64.URLEncoding.DecodeString(parts[1])
-		if err != nil {
-			bonus = append(bonus, raw)
-			continue
-		}
-		ni := manifests.NodeIdentity{
-			Cluster:  string(cluster),
-			Hostname: string(hostname),
-		}
-		result = append(result, ni)
-	}
-	return result, bonus
-}
-
-func (c *KeyStore) absoluteKeyPrefixForManifests(identity manifests.NodeIdentity) string {
+func (c KeyStore) AbsoluteKeyPrefixForManifests(identity manifests.NodeIdentity) string {
 	if identity.Hostname == "" {
 		panic("empty Hostname")
 	}
-	clusterPrefix := c.absoluteKeyPrefixForClusterHosts(identity.Cluster)
+	clusterPrefix := c.AbsoluteKeyPrefixForClusterHosts(identity.Cluster)
 	urlHostname := base64.URLEncoding.EncodeToString([]byte(identity.Hostname))
 	return fmt.Sprintf("%s%s/", clusterPrefix, urlHostname)
 }
 
-func (c *KeyStore) absoluteKeyForManifestTimeRange(identity manifests.NodeIdentity, boundary unixtime.Seconds) string {
-	return c.absoluteKeyPrefixForManifests(identity) + boundary.Decimal()
+func (c KeyStore) AbsoluteKeyForManifestTimeRange(identity manifests.NodeIdentity, boundary unixtime.Seconds) string {
+	return c.AbsoluteKeyPrefixForManifests(identity) + boundary.Decimal()
 }
 
-func (c *KeyStore) AbsoluteKeyForManifest(identity manifests.NodeIdentity, manifestKey manifests.ManifestKey) string {
-	return c.absoluteKeyPrefixForManifests(identity) + manifestKey.FileName()
+func (c KeyStore) AbsoluteKeyForManifest(identity manifests.NodeIdentity, manifestKey manifests.ManifestKey) string {
+	return c.AbsoluteKeyPrefixForManifests(identity) + manifestKey.FileName()
+}
+
+func (c KeyStore) NodeIdentityFromKey(key string) (manifests.NodeIdentity, error) {
+	clustersPrefix := c.AbsoluteKeyPrefixForClusters()
+	trimmed := strings.TrimSuffix(strings.TrimPrefix(key, clustersPrefix), "/")
+	parts := strings.Split(trimmed, "/")
+	if len(parts) != 2 {
+		return manifests.NodeIdentity{}, errors.New("Invalid number of parts")
+	}
+	cluster, err := base64.URLEncoding.DecodeString(parts[0])
+	if err != nil {
+		return manifests.NodeIdentity{}, err
+	}
+	hostname, err := base64.URLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return manifests.NodeIdentity{}, err
+
+	}
+	return manifests.NodeIdentity{
+		Cluster:  string(cluster),
+		Hostname: string(hostname),
+	}, nil
 }

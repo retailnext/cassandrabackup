@@ -20,12 +20,13 @@ import (
 	"strings"
 
 	"github.com/retailnext/cassandrabackup/bucket"
+	"github.com/retailnext/cassandrabackup/bucket/config"
 	"github.com/retailnext/cassandrabackup/cassandraconfig"
 	"github.com/retailnext/cassandrabackup/manifests"
 	"go.uber.org/zap"
 )
 
-func ForRestore(ctx context.Context, overrideCluster, overrideHostname, overridePattern *string) manifests.NodeIdentity {
+func ForRestore(ctx context.Context, cfg config.Config, overrideCluster, overrideHostname, overridePattern *string) manifests.NodeIdentity {
 	var result manifests.NodeIdentity
 	if overrideCluster != nil {
 		result.Cluster = *overrideCluster
@@ -46,7 +47,7 @@ func ForRestore(ctx context.Context, overrideCluster, overrideHostname, override
 
 	lgr := zap.S()
 	expr := hostnameExprForThisHost(overridePattern)
-	filtered := ForRestoreMatchingRegexp(ctx, result.Cluster, expr)
+	filtered := ForRestoreMatchingRegexp(ctx, cfg, result.Cluster, expr)
 	if len(filtered) != 1 {
 		lgr.Panicw("failed_to_find_host", "pattern", overridePattern, "found", filtered)
 	}
@@ -55,8 +56,8 @@ func ForRestore(ctx context.Context, overrideCluster, overrideHostname, override
 	return filtered[0]
 }
 
-func ForRestoreMatchingRegexp(ctx context.Context, cluster string, expr *regexp.Regexp) []manifests.NodeIdentity {
-	client := bucket.OpenShared()
+func ForRestoreMatchingRegexp(ctx context.Context, cfg config.Config, cluster string, expr *regexp.Regexp) []manifests.NodeIdentity {
+	client := bucket.OpenShared(cfg)
 
 	nodes, err := client.ListHostNames(ctx, cluster)
 	if err != nil {

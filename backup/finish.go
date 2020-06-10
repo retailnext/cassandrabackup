@@ -75,6 +75,10 @@ func (p *processor) finish() error {
 	}
 
 	if len(p.manifest.DataFiles) > 0 {
+
+		if p.manifest.ManifestType == manifests.ManifestTypeInvalid {
+			panic("invalid manifest type")
+		}
 		if err := p.bucketClient.PutManifest(context.Background(), p.identity, p.manifest); err != nil {
 			lgr.Errorw("manifest_put_error", "err", err)
 			p.cleanupHandler.MarkManifestUploadFailure()

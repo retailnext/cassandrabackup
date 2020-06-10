@@ -53,7 +53,7 @@ func (p *processor) uploadFile(record fileRecord, wg *sync.WaitGroup, limiter <-
 		return
 	}
 
-	record.UploadError = p.bucketClient.PutBlob(p.ctx, record.File, record.Digests)
+	record.UploadError = bucket.PutBlob(p.ctx, p.bucketClient, record.File, record.Digests)
 	switch record.UploadError {
 	case nil:
 		lgr.Debugw("upload_done", "path", record.File.Name(), "size", record.File.Len())

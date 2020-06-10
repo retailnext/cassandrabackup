@@ -18,12 +18,13 @@ import (
 	"context"
 
 	"github.com/retailnext/cassandrabackup/bucket"
+	"github.com/retailnext/cassandrabackup/bucket/config"
 	"github.com/retailnext/cassandrabackup/digest"
 	"github.com/retailnext/cassandrabackup/manifests"
 	"github.com/retailnext/cassandrabackup/nodeidentity"
 )
 
-func DoIncremental(ctx context.Context) error {
+func DoIncremental(ctx context.Context, cfg config.Config) error {
 	identity, manifest, err := nodeidentity.GetIdentityAndManifestTemplate(overrideCluster, overrideHostname)
 	if err != nil {
 		return err
@@ -34,8 +35,8 @@ func DoIncremental(ctx context.Context) error {
 	pr := &processor{
 		ctx: ctx,
 
-		bucketClient: bucket.OpenShared(),
-		digestCache:  digest.OpenShared(),
+		bucketClient: bucket.OpenShared(cfg),
+		digestCache:  digest.OpenShared(cfg),
 
 		prospectedFiles: make(chan fileRecord, 1),
 		uploadedFiles:   make(chan fileRecord, 1),

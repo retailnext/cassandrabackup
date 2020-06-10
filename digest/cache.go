@@ -18,37 +18,37 @@ import (
 	"context"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
+	"github.com/retailnext/cassandrabackup/bucket/config"
 	"github.com/retailnext/cassandrabackup/cache"
+	"github.com/retailnext/cassandrabackup/metrics"
 	"github.com/retailnext/cassandrabackup/paranoid"
 )
 
 type Cache struct {
 	c *cache.Cache
-	f ForUploadFactory
+	p config.CloudProvider
 }
 
-func OpenShared() *Cache {
-	cache.OpenShared()
+func OpenShared(cfg config.Config) *Cache {
+	cache.OpenShared(cfg)
 	return &Cache{
 		c: cache.Shared.Cache(cacheName),
-		f: &awsForUploadFactory{},
+		p: cfg.Provider,
 	}
 }
 
 const cacheName = "digests"
 
-func (c *Cache) CreateForUpload() ForUpload {
-	return c.f.CreateForUpload()
-}
-
 func (c *Cache) Get(ctx context.Context, file paranoid.File) (ForUpload, error) {
 	key := file.CacheKey()
+	if !c.p.IsAWS() {
+		key = append(key, byte(c.p))
+	}
 	var result ForUpload
 
 	getErr := c.c.Get(key, func(wrapped []byte) error {
 		if unwrapped := file.UnwrapCacheEntry(key, wrapped); unwrapped != nil {
-			maybeResult := c.CreateForUpload()
+			var maybeResult ForUpload
 			if err := maybeResult.UnmarshalBinary(unwrapped); err == nil {
 				result = maybeResult
 				return nil
@@ -62,22 +62,22 @@ func (c *Cache) Get(ctx context.Context, file paranoid.File) (ForUpload, error) 
 
 	switch getErr {
 	case nil:
-		hitFilesTotal.Inc()
-		hitBytesTotal.Add(float64(file.Len()))
+		metrics.Digest.HitFilesTotal.Inc()
+		metrics.Digest.HitBytesTotal.Add(float64(file.Len()))
 		return result, nil
 	case cache.NotFound, cache.DoNotPromote:
 	default:
-		return nil, getErr
+		return ForUpload{}, getErr
 	}
 
 	t0 := time.Now()
-	result = c.CreateForUpload()
-	if populateErr := result.populate(ctx, file); populateErr != nil {
-		return nil, populateErr
+	result = ForUpload{}
+	if populateErr := result.populate(ctx, file, c.p); populateErr != nil {
+		return ForUpload{}, populateErr
 	}
-	missFilesTotal.Inc()
-	missBytesTotal.Add(float64(file.Len()))
-	missSecondsTotal.Add(time.Since(t0).Seconds())
+	metrics.Digest.MissFilesTotal.Inc()
+	metrics.Digest.MissBytesTotal.Add(float64(file.Len()))
+	metrics.Digest.MissSecondsTotal.Add(time.Since(t0).Seconds())
 
 	marshalled, marshalErr := result.MarshalBinary()
 	if marshalErr != nil {
@@ -85,48 +85,7 @@ func (c *Cache) Get(ctx context.Context, file paranoid.File) (ForUpload, error) 
 	}
 	wrapped := file.WrapCacheEntry(marshalled)
 	if putErr := c.c.Put(key, wrapped); putErr != nil {
-		return nil, putErr
+		return ForUpload{}, putErr
 	}
 	return result, nil
-}
-
-var (
-	hitFilesTotal = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "cassandrabackup",
-		Subsystem: "digestcache",
-		Name:      "hit_files_total",
-		Help:      "Number of digest requests that were a cache hit.",
-	})
-	hitBytesTotal = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "cassandrabackup",
-		Subsystem: "digestcache",
-		Name:      "hit_bytes_total",
-		Help:      "Total file size of digest requests processed that were a cache hit.",
-	})
-	missFilesTotal = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "cassandrabackup",
-		Subsystem: "digestcache",
-		Name:      "miss_files_total",
-		Help:      "Number of digest requests that were a cache miss.",
-	})
-	missBytesTotal = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "cassandrabackup",
-		Subsystem: "digestcache",
-		Name:      "miss_bytes_total",
-		Help:      "Total file size of digest requests processed that were a cache miss.",
-	})
-	missSecondsTotal = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "cassandrabackup",
-		Subsystem: "digestcache",
-		Name:      "miss_seconds_total",
-		Help:      "Total time spent calculating new digests.",
-	})
-)
-
-func init() {
-	prometheus.MustRegister(hitBytesTotal)
-	prometheus.MustRegister(hitFilesTotal)
-	prometheus.MustRegister(missBytesTotal)
-	prometheus.MustRegister(missFilesTotal)
-	prometheus.MustRegister(missSecondsTotal)
 }

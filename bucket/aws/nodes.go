@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package bucket
+package aws
 
 import (
 	"context"
@@ -23,17 +23,34 @@ import (
 	"go.uber.org/zap"
 )
 
+func (c *awsClient) decodeClusterHosts(prefixes []*s3.CommonPrefix) ([]manifests.NodeIdentity, []string) {
+	result := make([]manifests.NodeIdentity, 0, len(prefixes))
+	var bonus []string
+	for _, obj := range prefixes {
+		raw := *obj.Prefix
+
+		ni, err := c.keyStore.NodeIdentityFromKey(raw)
+		if err != nil {
+			bonus = append(bonus, raw)
+			continue
+		}
+
+		result = append(result, ni)
+	}
+	return result, bonus
+}
+
 func (c *awsClient) ListHostNames(ctx context.Context, cluster string) ([]manifests.NodeIdentity, error) {
 	lgr := zap.S()
-	prefix := c.keyStore.absoluteKeyPrefixForClusterHosts(cluster)
+	prefix := c.keyStore.AbsoluteKeyPrefixForClusterHosts(cluster)
 	input := &s3.ListObjectsV2Input{
-		Bucket:    &c.keyStore.bucket,
+		Bucket:    &c.keyStore.Bucket,
 		Delimiter: aws.String("/"),
 		Prefix:    &prefix,
 	}
 	var result []manifests.NodeIdentity
 	err := c.s3Svc.ListObjectsV2PagesWithContext(ctx, input, func(page *s3.ListObjectsV2Output, lastPage bool) bool {
-		nodes, bonus := c.keyStore.decodeClusterHosts(page.CommonPrefixes)
+		nodes, bonus := c.decodeClusterHosts(page.CommonPrefixes)
 		if len(bonus) > 0 {
 			lgr.Warnw("unexpected_objects_in_bucket", "keys", bonus)
 		}
@@ -52,16 +69,16 @@ func (c *awsClient) ListHostNames(ctx context.Context, cluster string) ([]manife
 
 func (c *awsClient) ListClusters(ctx context.Context) ([]string, error) {
 	lgr := zap.S()
-	prefix := c.keyStore.absoluteKeyPrefixForClusters()
+	prefix := c.keyStore.AbsoluteKeyPrefixForClusters()
 	input := &s3.ListObjectsV2Input{
-		Bucket:    &c.keyStore.bucket,
+		Bucket:    &c.keyStore.Bucket,
 		Delimiter: aws.String("/"),
 		Prefix:    &prefix,
 	}
 	var result []string
 	err := c.s3Svc.ListObjectsV2PagesWithContext(ctx, input, func(page *s3.ListObjectsV2Output, lastPage bool) bool {
 		for _, obj := range page.CommonPrefixes {
-			cluster, err := c.keyStore.decodeCluster(*obj.Prefix)
+			cluster, err := c.keyStore.DecodeCluster(*obj.Prefix)
 			if err != nil {
 				lgr.Errorw("decode_cluster_error", "err", err)
 			} else {
