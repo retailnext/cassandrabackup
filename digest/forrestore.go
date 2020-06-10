@@ -21,11 +21,15 @@ import (
 
 	"github.com/mailru/easyjson/jlexer"
 	"github.com/mailru/easyjson/jwriter"
-	"golang.org/x/crypto/blake2b"
+	"github.com/retailnext/cassandrabackup/blake"
 )
 
 type ForRestore struct {
-	blake2b blake2bDigest
+	blake2b blake.Blake2bDigest
+}
+
+func NewForRestore(blake2b blake.Blake2bDigest) ForRestore {
+	return ForRestore{blake2b: blake2b}
 }
 
 func (r ForRestore) URLSafe() string {
@@ -38,46 +42,13 @@ func (r ForRestore) Verify(ctx context.Context, reader io.ReadSeeker) error {
 		return err
 	}
 
-	blake2b512Hash, err := blake2b.New512(nil)
+	blake2b512Hash, err := blake.MakeHash(ctx, reader)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
-	buf := make([]byte, 64*128*4)
-	var doneCh <-chan struct{}
-	var lastCheckedDoneCh int64
-	var size int64
-	for {
-		bytesRead, err := reader.Read(buf)
-		if err != nil && err != io.EOF {
-			return err
-		}
-		if bytesRead > 0 {
-			if _, err := blake2b512Hash.Write(buf[0:bytesRead]); err != nil {
-				panic(err)
-			}
-		}
-		size += int64(bytesRead)
-		if err == io.EOF {
-			break
-		}
-
-		if size-lastCheckedDoneCh > checkContextBytesInterval {
-			if doneCh == nil {
-				doneCh = ctx.Done()
-			}
-
-			select {
-			case <-doneCh:
-				return ctx.Err()
-			default:
-				lastCheckedDoneCh = size
-			}
-		}
-	}
-
-	var actual blake2bDigest
-	actual.populate(blake2b512Hash)
+	var actual blake.Blake2bDigest
+	actual.Populate(blake2b512Hash)
 	if r.blake2b != actual {
 		return MismatchError{
 			expected: r.blake2b,
@@ -112,8 +83,8 @@ func (r *ForRestore) UnmarshalBinary(data []byte) error {
 }
 
 type MismatchError struct {
-	expected blake2bDigest
-	actual   blake2bDigest
+	expected blake.Blake2bDigest
+	actual   blake.Blake2bDigest
 }
 
 func (e MismatchError) Error() string {

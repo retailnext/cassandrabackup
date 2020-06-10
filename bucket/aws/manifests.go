@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package bucket
+package aws
 
 import (
 	"context"
@@ -20,6 +20,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/retailnext/cassandrabackup/bucket/config"
 	"github.com/retailnext/cassandrabackup/manifests"
 	"github.com/retailnext/cassandrabackup/unixtime"
 	"go.uber.org/zap"
@@ -27,10 +28,10 @@ import (
 
 func (c *awsClient) ListManifests(ctx context.Context, identity manifests.NodeIdentity, startAfter, notAfter unixtime.Seconds) (manifests.ManifestKeys, error) {
 	lgr := zap.S()
-	prefixKey := c.keyStore.absoluteKeyPrefixForManifests(identity)
-	startAfterKey := c.keyStore.absoluteKeyForManifestTimeRange(identity, startAfter)
+	prefixKey := c.keyStore.AbsoluteKeyPrefixForManifests(identity)
+	startAfterKey := c.keyStore.AbsoluteKeyForManifestTimeRange(identity, startAfter)
 	input := &s3.ListObjectsV2Input{
-		Bucket:     &c.keyStore.bucket,
+		Bucket:     &c.keyStore.Bucket,
 		Delimiter:  aws.String("/"),
 		Prefix:     &prefixKey,
 		StartAfter: &startAfterKey,
@@ -38,7 +39,7 @@ func (c *awsClient) ListManifests(ctx context.Context, identity manifests.NodeId
 
 	notAfterKey := ""
 	if notAfter > 0 {
-		notAfterKey = c.keyStore.absoluteKeyForManifestTimeRange(identity, notAfter)
+		notAfterKey = c.keyStore.AbsoluteKeyForManifestTimeRange(identity, notAfter)
 	}
 	attempts := 0
 	for {
@@ -69,7 +70,7 @@ func (c *awsClient) ListManifests(ctx context.Context, identity manifests.NodeId
 			if ctxErr := ctx.Err(); ctxErr != nil {
 				return nil, ctxErr
 			}
-			if IsNoSuchKey(err) || attempts > listManifestsRetriesLimit {
+			if IsNoSuchKey(err) || attempts > config.ListManifestsRetriesLimit {
 				return nil, err
 			}
 			lgr.Errorw("list_manifests_s3_error", "err", err, "attempts", attempts)
@@ -77,32 +78,4 @@ func (c *awsClient) ListManifests(ctx context.Context, identity manifests.NodeId
 			return keys, nil
 		}
 	}
-}
-
-func (c *awsClient) PutManifest(ctx context.Context, identity manifests.NodeIdentity, manifest manifests.Manifest) error {
-	if manifest.ManifestType == manifests.ManifestTypeInvalid {
-		panic("invalid manifest type")
-	}
-	absoluteKey := c.keyStore.AbsoluteKeyForManifest(identity, manifest.Key())
-	return c.putDocument(ctx, absoluteKey, manifest)
-}
-
-func (c *awsClient) GetManifests(ctx context.Context, identity manifests.NodeIdentity, keys manifests.ManifestKeys) ([]manifests.Manifest, error) {
-	var results []manifests.Manifest
-	doneCh := ctx.Done()
-	for _, manifestKey := range keys {
-		select {
-		case <-doneCh:
-			return nil, nil
-		default:
-		}
-		absoluteKey := c.keyStore.AbsoluteKeyForManifest(identity, manifestKey)
-		var m manifests.Manifest
-		if err := c.getDocument(ctx, absoluteKey, &m); err != nil {
-			zap.S().Errorw("get_manifest_error", "key", absoluteKey, "err", err)
-			return nil, err
-		}
-		results = append(results, m)
-	}
-	return results, nil
 }

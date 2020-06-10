@@ -12,54 +12,58 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package bucket
+package aws
 
 import (
 	"context"
-	"errors"
 	"io"
 	"os"
 
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/prometheus/client_golang/prometheus"
+	"github.com/retailnext/cassandrabackup/bucket/config"
+	"github.com/retailnext/cassandrabackup/bucket/keystore"
 	"github.com/retailnext/cassandrabackup/digest"
+	"github.com/retailnext/cassandrabackup/metrics"
 	"github.com/retailnext/cassandrabackup/paranoid"
 	"go.uber.org/zap"
 )
 
-var UploadSkipped = errors.New("upload skipped")
-
-func (c *awsClient) KeyStore() *KeyStore {
+func (c *awsClient) KeyStore() *keystore.KeyStore {
 	return &c.keyStore
 }
 
 func (c *awsClient) PutBlob(ctx context.Context, file paranoid.File, digests digest.ForUpload) error {
 	key := c.keyStore.AbsoluteKeyForBlob(digests.ForRestore())
 	if exists, err := c.blobExists(ctx, digests); err != nil {
-		uploadErrors.Inc()
+		metrics.Bucket.UploadErrors.Inc()
 		return err
 	} else if exists {
-		skippedFiles.Inc()
-		skippedBytes.Add(float64(file.Len()))
-		return UploadSkipped
+		metrics.Bucket.SkippedFiles.Inc()
+		metrics.Bucket.SkippedBytes.Add(float64(file.Len()))
+		return config.UploadSkipped
 	}
 
-	if err := c.uploader.UploadFile(ctx, key, file, digests); err != nil {
-		uploadErrors.Inc()
+	awsDigests, ok := digests.(*digest.AWSForUpload)
+	if !ok {
+		panic("needs to be AWSForUpload")
+	}
+
+	if err := c.uploader.UploadFile(ctx, key, file, awsDigests); err != nil {
+		metrics.Bucket.UploadErrors.Inc()
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return ctxErr
 		}
 		return err
 	}
-	uploadedFiles.Inc()
-	uploadedBytes.Add(float64(file.Len()))
+	metrics.Bucket.UploadedFiles.Inc()
+	metrics.Bucket.UploadedBytes.Add(float64(file.Len()))
 	return nil
 }
 
 func (c *awsClient) DownloadBlob(ctx context.Context, digests digest.ForRestore, file *os.File) error {
 	key := c.keyStore.AbsoluteKeyForBlob(digests)
 	getObjectInput := &s3.GetObjectInput{
-		Bucket: &c.keyStore.bucket,
+		Bucket: &c.keyStore.Bucket,
 		Key:    &key,
 	}
 	attempts := 0
@@ -76,7 +80,7 @@ func (c *awsClient) DownloadBlob(ctx context.Context, digests digest.ForRestore,
 			if ctxErr := ctx.Err(); ctxErr != nil {
 				return ctxErr
 			}
-			if IsNoSuchKey(err) || attempts > getBlobRetriesLimit {
+			if IsNoSuchKey(err) || attempts > config.GetBlobRetriesLimit {
 				return err
 			}
 			zap.S().Errorw("get_blob_s3_error", "err", err, "attempts", attempts)
@@ -87,13 +91,13 @@ func (c *awsClient) DownloadBlob(ctx context.Context, digests digest.ForRestore,
 }
 
 func (c *awsClient) blobExists(ctx context.Context, digests digest.ForUpload) (bool, error) {
-	key := c.keyStore.AbsoluteKeyForBlob(digests.ForRestore())
 	if c.existsCache.Get(digests.ForRestore()) {
 		return true, nil
 	}
 
+	key := c.keyStore.AbsoluteKeyForBlob(digests.ForRestore())
 	headObjectInput := &s3.HeadObjectInput{
-		Bucket: &c.keyStore.bucket,
+		Bucket: &c.keyStore.Bucket,
 		Key:    &key,
 	}
 	headObjectOutput, err := c.s3Svc.HeadObjectWithContext(ctx, headObjectInput)
@@ -110,7 +114,7 @@ func (c *awsClient) blobExists(ctx context.Context, digests digest.ForUpload) (b
 		zap.S().Infow("blob_exists_saw_delete_marker", "key", key)
 		return false, nil
 	}
-	expectedLength := digests.PartDigests().TotalLength()
+	expectedLength := digests.TotalLength()
 	actualLength := *headObjectOutput.ContentLength
 	if actualLength != expectedLength {
 		zap.S().Infow("blob_exists_saw_wrong_length", "key", key, "expected", expectedLength, "actual", actualLength)
@@ -122,45 +126,4 @@ func (c *awsClient) blobExists(ctx context.Context, digests digest.ForUpload) (b
 	}
 
 	return true, nil
-}
-
-var (
-	skippedBytes = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "cassandrabackup",
-		Subsystem: "bucket",
-		Name:      "skipped_bytes_total",
-		Help:      "Total bytes not uploaded due to them already existing in the bucket.",
-	})
-	skippedFiles = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "cassandrabackup",
-		Subsystem: "bucket",
-		Name:      "skipped_files_total",
-		Help:      "Number of files not uploaded due to them already existing in the bucket.",
-	})
-	uploadedBytes = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "cassandrabackup",
-		Subsystem: "bucket",
-		Name:      "upload_bytes_total",
-		Help:      "Total bytes uploaded to the bucket.",
-	})
-	uploadedFiles = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "cassandrabackup",
-		Subsystem: "bucket",
-		Name:      "upload_files_total",
-		Help:      "Number of files uploaded to the bucket.",
-	})
-	uploadErrors = prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace: "cassandrabackup",
-		Subsystem: "bucket",
-		Name:      "upload_errors_total",
-		Help:      "Number of failed file uploads.",
-	})
-)
-
-func init() {
-	prometheus.MustRegister(skippedBytes)
-	prometheus.MustRegister(skippedFiles)
-	prometheus.MustRegister(uploadedBytes)
-	prometheus.MustRegister(uploadedFiles)
-	prometheus.MustRegister(uploadErrors)
 }

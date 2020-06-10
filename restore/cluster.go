@@ -18,6 +18,7 @@ import (
 	"context"
 	"regexp"
 
+	"github.com/retailnext/cassandrabackup/bucket/config"
 	"github.com/retailnext/cassandrabackup/manifests"
 	"github.com/retailnext/cassandrabackup/nodeidentity"
 	"github.com/retailnext/cassandrabackup/restore/plan"
@@ -25,7 +26,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func RestoreCluster(ctx context.Context) error {
+func RestoreCluster(ctx context.Context, config *config.Config) error {
 	lgr := zap.S()
 
 	filter := plan.Filter{
@@ -33,14 +34,14 @@ func RestoreCluster(ctx context.Context) error {
 	}
 	filter.Build(*clusterCmdTables)
 
-	identities := nodeIdentitiesForCluster(ctx, clusterCmdCluster, clusterCmdHostnamePattern)
+	identities := nodeIdentitiesForCluster(ctx, config, clusterCmdCluster, clusterCmdHostnamePattern)
 	lgr.Infow("selected_hosts", "identities", identities)
 
 	var dp downloadPlan
 	for _, hostIdentity := range identities {
 		hostLgr := lgr.With("identity", hostIdentity)
 
-		nodePlan, err := plan.Create(ctx, hostIdentity, unixtime.Seconds(*clusterCmdNotBefore), unixtime.Seconds(*clusterCmdNotAfter))
+		nodePlan, err := plan.Create(ctx, config, hostIdentity, unixtime.Seconds(*clusterCmdNotBefore), unixtime.Seconds(*clusterCmdNotAfter))
 		if err != nil {
 			return err
 		}
@@ -68,11 +69,11 @@ func RestoreCluster(ctx context.Context) error {
 		return nil
 	}
 
-	w := newWorker(*clusterCmdTargetDirectory, false)
+	w := newWorker(config, *clusterCmdTargetDirectory, false)
 	return w.restoreFiles(ctx, files)
 }
 
-func nodeIdentitiesForCluster(ctx context.Context, cluster, prefix *string) []manifests.NodeIdentity {
+func nodeIdentitiesForCluster(ctx context.Context, config *config.Config, cluster, prefix *string) []manifests.NodeIdentity {
 	expr := regexp.MustCompile("^" + regexp.QuoteMeta(*prefix) + ".+$")
-	return nodeidentity.ForRestoreMatchingRegexp(ctx, *cluster, expr)
+	return nodeidentity.ForRestoreMatchingRegexp(ctx, config, *cluster, expr)
 }

@@ -19,13 +19,14 @@ import (
 	"fmt"
 
 	"github.com/retailnext/cassandrabackup/bucket"
+	"github.com/retailnext/cassandrabackup/bucket/config"
 	"github.com/retailnext/cassandrabackup/digest"
 	"github.com/retailnext/cassandrabackup/manifests"
 	"github.com/retailnext/cassandrabackup/nodeidentity"
 	"github.com/retailnext/cassandrabackup/nodetool"
 )
 
-func DoSnapshotBackup(ctx context.Context) error {
+func DoSnapshotBackup(ctx context.Context, config *config.Config) error {
 	identity, manifest, err := nodeidentity.GetIdentityAndManifestTemplate(overrideCluster, overrideHostname)
 	if err != nil {
 		return err
@@ -42,8 +43,8 @@ func DoSnapshotBackup(ctx context.Context) error {
 	pr := &processor{
 		ctx: ctx,
 
-		bucketClient: bucket.OpenShared(),
-		digestCache:  digest.OpenShared(),
+		bucketClient: bucket.OpenShared(config),
+		digestCache:  digest.OpenShared(config),
 
 		prospectedFiles: make(chan fileRecord),
 		uploadedFiles:   make(chan fileRecord),
