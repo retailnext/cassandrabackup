@@ -1,4 +1,4 @@
-// Copyright 2019 RetailNext, Inc.
+// Copyright 2020 RetailNext, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package bucket
+package existscache
 
 import (
 	"time"
@@ -28,6 +28,12 @@ const objectLockSafetyMargin = 12 * time.Hour
 
 type ExistsCache struct {
 	cache *cache.Cache
+}
+
+func NewExistsCache() *ExistsCache {
+	return &ExistsCache{
+		cache: cache.Shared.Cache("bucket_exists"),
+	}
 }
 
 func (e *ExistsCache) Get(restore digest.ForRestore) bool {

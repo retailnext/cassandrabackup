@@ -12,24 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package bucket
+package aws
 
 import (
 	"context"
-	"errors"
 	"io"
 	"os"
 
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/retailnext/cassandrabackup/bucket/config"
+	"github.com/retailnext/cassandrabackup/bucket/keystore"
 	"github.com/retailnext/cassandrabackup/digest"
 	"github.com/retailnext/cassandrabackup/paranoid"
 	"go.uber.org/zap"
 )
 
-var UploadSkipped = errors.New("upload skipped")
-
-func (c *awsClient) KeyStore() *KeyStore {
+func (c *awsClient) KeyStore() *keystore.KeyStore {
 	return &c.keyStore
 }
 
@@ -41,7 +40,7 @@ func (c *awsClient) PutBlob(ctx context.Context, file paranoid.File, digests dig
 	} else if exists {
 		skippedFiles.Inc()
 		skippedBytes.Add(float64(file.Len()))
-		return UploadSkipped
+		return config.UploadSkipped
 	}
 
 	if err := c.uploader.UploadFile(ctx, key, file, digests); err != nil {
@@ -59,7 +58,7 @@ func (c *awsClient) PutBlob(ctx context.Context, file paranoid.File, digests dig
 func (c *awsClient) DownloadBlob(ctx context.Context, digests digest.ForRestore, file *os.File) error {
 	key := c.keyStore.AbsoluteKeyForBlob(digests)
 	getObjectInput := &s3.GetObjectInput{
-		Bucket: &c.keyStore.bucket,
+		Bucket: &c.keyStore.Bucket,
 		Key:    &key,
 	}
 	attempts := 0
@@ -76,7 +75,7 @@ func (c *awsClient) DownloadBlob(ctx context.Context, digests digest.ForRestore,
 			if ctxErr := ctx.Err(); ctxErr != nil {
 				return ctxErr
 			}
-			if IsNoSuchKey(err) || attempts > getBlobRetriesLimit {
+			if IsNoSuchKey(err) || attempts > config.GetBlobRetriesLimit {
 				return err
 			}
 			zap.S().Errorw("get_blob_s3_error", "err", err, "attempts", attempts)
@@ -93,7 +92,7 @@ func (c *awsClient) blobExists(ctx context.Context, digests digest.ForUpload) (b
 	}
 
 	headObjectInput := &s3.HeadObjectInput{
-		Bucket: &c.keyStore.bucket,
+		Bucket: &c.keyStore.Bucket,
 		Key:    &key,
 	}
 	headObjectOutput, err := c.s3Svc.HeadObjectWithContext(ctx, headObjectInput)

@@ -16,122 +16,67 @@ package bucket
 
 import (
 	"context"
+	"fmt"
 	"os"
-	"strings"
 	"sync"
-	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3iface"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager/s3manageriface"
-	"github.com/retailnext/cassandrabackup/bucket/safeuploader"
-	"github.com/retailnext/cassandrabackup/cache"
+	"github.com/retailnext/cassandrabackup/bucket/aws"
+	"github.com/retailnext/cassandrabackup/bucket/config"
+	"github.com/retailnext/cassandrabackup/bucket/google"
+	"github.com/retailnext/cassandrabackup/bucket/keystore"
 	"github.com/retailnext/cassandrabackup/digest"
 	"github.com/retailnext/cassandrabackup/manifests"
 	"github.com/retailnext/cassandrabackup/paranoid"
 	"github.com/retailnext/cassandrabackup/unixtime"
 	"go.uber.org/zap"
-	"gopkg.in/alecthomas/kingpin.v2"
 )
-
-const putJsonRetriesLimit = 3
-const getJsonRetriesLimit = 3
-const getBlobRetriesLimit = 3
-const listManifestsRetriesLimit = 3
-const retrySleepPerAttempt = time.Second
 
 type Client interface {
 	ListManifests(ctx context.Context, identity manifests.NodeIdentity, startAfter, notAfter unixtime.Seconds) (manifests.ManifestKeys, error)
-	GetManifests(ctx context.Context, identity manifests.NodeIdentity, keys manifests.ManifestKeys) ([]manifests.Manifest, error)
-	PutManifest(ctx context.Context, identity manifests.NodeIdentity, manifest manifests.Manifest) error
+	GetManifest(ctx context.Context, absoluteKey string) (manifests.Manifest, error)
+	PutManifest(ctx context.Context, absoluteKey string, manifest manifests.Manifest) error
 	ListHostNames(ctx context.Context, cluster string) ([]manifests.NodeIdentity, error)
 	ListClusters(ctx context.Context) ([]string, error)
 	DownloadBlob(ctx context.Context, digests digest.ForRestore, file *os.File) error
 	PutBlob(ctx context.Context, file paranoid.File, digests digest.ForUpload) error
-	KeyStore() *KeyStore
+	KeyStore() *keystore.KeyStore
 }
-
-type awsClient struct {
-	s3Svc       s3iface.S3API
-	uploader    *safeuploader.SafeUploader
-	downloader  s3manageriface.DownloaderAPI
-	existsCache *ExistsCache
-
-	keyStore             KeyStore
-	serverSideEncryption *string
-}
-
-var (
-	bucketName             = kingpin.Flag("s3-bucket", "S3 bucket name.").Required().String()
-	bucketRegion           = kingpin.Flag("s3-region", "S3 bucket region.").Envar("AWS_REGION").Required().String()
-	bucketKeyPrefix        = kingpin.Flag("s3-key-prefix", "Set the prefix for files in the S3 bucket").Default("/").String()
-	bucketBlobStorageClass = kingpin.Flag("s3-storage-class", "Set the storage class for files in S3").Default(s3.StorageClassStandardIa).String()
-)
 
 var (
 	Shared Client
 	once   sync.Once
 )
 
-func GetBucketFlags() (*string, *string) {
-	return bucketName, bucketRegion
-}
-
-func OpenShared() Client {
+func OpenShared(config *config.Config) Client {
 	once.Do(func() {
-		Shared = newAWSClient()
+		if config.Provider == "aws" {
+			Shared = aws.NewAWSClient(config)
+		} else if config.Provider == "google" {
+			Shared = google.NewGCSClient(config)
+		} else {
+			err := fmt.Errorf("cloud provider not supported: %s", config.Provider)
+			zap.S().Fatalw("cloud_provider_error", "err", err)
+		}
 	})
 	return Shared
 }
 
-func newAWSClient() *awsClient {
-	cache.OpenShared()
-
-	awsConf := aws.NewConfig().WithRegion(*bucketRegion)
-	awsSession, err := session.NewSession(awsConf)
-	if err != nil {
-		zap.S().Fatalw("aws_new_session_error", "err", err)
-	}
-
-	s3Svc := s3.New(awsSession)
-	c := &awsClient{
-		s3Svc: s3Svc,
-		uploader: &safeuploader.SafeUploader{
-			S3:                   s3Svc,
-			Bucket:               *bucketName,
-			ServerSideEncryption: aws.String(s3.ServerSideEncryptionAes256),
-			StorageClass:         bucketBlobStorageClass,
-		},
-		downloader: s3manager.NewDownloaderWithClient(s3Svc, func(d *s3manager.Downloader) {
-			d.PartSize = 64 * 1024 * 1024 // 64MB per part
-		}),
-		existsCache: &ExistsCache{
-			cache: cache.Shared.Cache("bucket_exists"),
-		},
-		keyStore:             newKeyStore(*bucketName, strings.Trim(*bucketKeyPrefix, "/")),
-		serverSideEncryption: aws.String(s3.ServerSideEncryptionAes256),
-	}
-	c.validateEncryptionConfiguration()
-	return c
-}
-
-func (c *awsClient) validateEncryptionConfiguration() {
-	input := &s3.GetBucketEncryptionInput{
-		Bucket: &c.keyStore.bucket,
-	}
-	output, err := c.s3Svc.GetBucketEncryption(input)
-	if err != nil {
-		zap.S().Fatalw("failed_to_validate_bucket_encryption", "err", err)
-	}
-	for _, rule := range output.ServerSideEncryptionConfiguration.Rules {
-		if rule.ApplyServerSideEncryptionByDefault != nil {
-			if rule.ApplyServerSideEncryptionByDefault.SSEAlgorithm != nil {
-				return
-			}
+func GetManifests(ctx context.Context, c Client, identity manifests.NodeIdentity, keys manifests.ManifestKeys) ([]manifests.Manifest, error) {
+	var results []manifests.Manifest
+	doneCh := ctx.Done()
+	for _, manifestKey := range keys {
+		select {
+		case <-doneCh:
+			return nil, nil
+		default:
 		}
+		absoluteKey := c.KeyStore().AbsoluteKeyForManifest(identity, manifestKey)
+		manifest, err := c.GetManifest(ctx, absoluteKey)
+		if err != nil {
+			zap.S().Errorw("get_manifest_error", "key", absoluteKey, "err", err)
+			return nil, err
+		}
+		results = append(results, manifest)
 	}
-	zap.S().Fatalw("bucket_not_configured_with_sse_algorithm", "bucket", c.keyStore.bucket)
+	return results, nil
 }

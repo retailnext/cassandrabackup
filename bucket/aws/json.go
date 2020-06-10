@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package bucket
+package aws
 
 import (
 	"bytes"
@@ -23,13 +23,15 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/mailru/easyjson"
+	"github.com/retailnext/cassandrabackup/bucket/config"
+	"github.com/retailnext/cassandrabackup/manifests"
 	"go.uber.org/zap"
 )
 
-func (c *awsClient) putDocument(ctx context.Context, absoluteKey string, v easyjson.Marshaler) error {
+func (c *awsClient) PutManifest(ctx context.Context, absoluteKey string, manifest manifests.Manifest) error {
 	var encodeBuffer bytes.Buffer
 	gzipWriter := gzip.NewWriter(&encodeBuffer)
-	if _, err := easyjson.MarshalToWriter(v, gzipWriter); err != nil {
+	if _, err := easyjson.MarshalToWriter(manifest, gzipWriter); err != nil {
 		panic(err)
 	}
 	if err := gzipWriter.Close(); err != nil {
@@ -37,7 +39,7 @@ func (c *awsClient) putDocument(ctx context.Context, absoluteKey string, v easyj
 	}
 
 	putObjectInput := &s3.PutObjectInput{
-		Bucket:               &c.keyStore.bucket,
+		Bucket:               &c.keyStore.Bucket,
 		Key:                  &absoluteKey,
 		ContentType:          aws.String("application/json"),
 		ContentEncoding:      aws.String("gzip"),
@@ -52,20 +54,20 @@ func (c *awsClient) putDocument(ctx context.Context, absoluteKey string, v easyj
 			if ctxErr := ctx.Err(); ctxErr != nil {
 				return ctxErr
 			}
-			if attempts > putJsonRetriesLimit {
+			if attempts > config.PutJsonRetriesLimit {
 				return err
 			}
 			zap.S().Warnw("s3_put_object_error", "err", err, "attempts", attempts)
-			time.Sleep(time.Duration(attempts) * retrySleepPerAttempt)
+			time.Sleep(time.Duration(attempts) * config.RetrySleepPerAttempt)
 		} else {
 			return nil
 		}
 	}
 }
 
-func (c *awsClient) getDocument(ctx context.Context, absoluteKey string, v easyjson.Unmarshaler) error {
+func (c *awsClient) GetManifest(ctx context.Context, absoluteKey string) (manifests.Manifest, error) {
 	getObjectInput := &s3.GetObjectInput{
-		Bucket: &c.keyStore.bucket,
+		Bucket: &c.keyStore.Bucket,
 		Key:    &absoluteKey,
 	}
 	attempts := 0
@@ -73,21 +75,22 @@ func (c *awsClient) getDocument(ctx context.Context, absoluteKey string, v easyj
 		getObjectOutput, err := c.s3Svc.GetObjectWithContext(ctx, getObjectInput)
 		if err != nil {
 			if IsNoSuchKey(err) {
-				return err
+				return manifests.Manifest{}, err
 			}
 			attempts++
 			if ctxErr := ctx.Err(); ctxErr != nil {
-				return ctxErr
+				return manifests.Manifest{}, ctxErr
 			}
-			if attempts > getJsonRetriesLimit {
-				return err
+			if attempts > config.GetJsonRetriesLimit {
+				return manifests.Manifest{}, err
 			}
 			zap.S().Warnw("s3_get_object_error", "err", err, "attempts", attempts)
-			time.Sleep(time.Duration(attempts) * retrySleepPerAttempt)
+			time.Sleep(time.Duration(attempts) * config.RetrySleepPerAttempt)
 		} else {
-			err = easyjson.UnmarshalFromReader(getObjectOutput.Body, v)
+			var manifest manifests.Manifest
+			err = easyjson.UnmarshalFromReader(getObjectOutput.Body, &manifest)
 			_ = getObjectOutput.Body.Close()
-			return err
+			return manifest, err
 		}
 	}
 }
