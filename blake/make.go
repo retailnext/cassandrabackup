@@ -24,14 +24,15 @@ import (
 )
 
 const checkContextBytesInterval = 1024 * 1024 * 8
+const bufferSize = 4 * 1024 * 8
 
-func Make(ctx context.Context, reader io.ReadSeeker) (hash.Hash, error) {
+func computeHash(ctx context.Context, reader io.ReadSeeker, onWrite func(buf []byte, len int)) (hash.Hash, error) {
 	blake2b512Hash, err := blake2b.New512(nil)
 	if err != nil {
 		panic(err)
 	}
 
-	buf := make([]byte, 64*128*4)
+	buf := make([]byte, bufferSize)
 	var doneCh <-chan struct{}
 	var lastCheckedDoneCh int64
 	var size int64
@@ -41,59 +42,9 @@ func Make(ctx context.Context, reader io.ReadSeeker) (hash.Hash, error) {
 			return nil, err
 		}
 		if bytesRead > 0 {
-			if _, err := blake2b512Hash.Write(buf[0:bytesRead]); err != nil {
-				panic(err)
+			if onWrite != nil {
+				onWrite(buf, bytesRead)
 			}
-		}
-		size += int64(bytesRead)
-		if err == io.EOF {
-			break
-		}
-
-		if size-lastCheckedDoneCh > checkContextBytesInterval {
-			if doneCh == nil {
-				doneCh = ctx.Done()
-			}
-
-			select {
-			case <-doneCh:
-				return nil, ctx.Err()
-			default:
-				lastCheckedDoneCh = size
-			}
-		}
-	}
-
-	return blake2b512Hash, nil
-}
-
-func MakeHash(ctx context.Context, file paranoid.File, onWrite func(buf []byte, len int)) (hash.Hash, error) {
-	osFile, err := file.Open()
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if closeErr := osFile.Close(); closeErr != nil {
-			panic(closeErr)
-		}
-	}()
-
-	blake2b512Hash, err := blake2b.New512(nil)
-	if err != nil {
-		panic(err)
-	}
-
-	buf := make([]byte, 32*1024)
-	var doneCh <-chan struct{}
-	var lastCheckedDoneCh int64
-	var size int64
-	for {
-		bytesRead, err := osFile.Read(buf)
-		if err != nil && err != io.EOF {
-			return nil, err
-		}
-		if bytesRead > 0 {
-			onWrite(buf, bytesRead)
 			if n, err := blake2b512Hash.Write(buf[0:bytesRead]); err != nil {
 				panic(err)
 			} else if n != bytesRead {
@@ -119,6 +70,28 @@ func MakeHash(ctx context.Context, file paranoid.File, onWrite func(buf []byte, 
 		}
 	}
 
-	err = file.CheckFile(osFile)
-	return blake2b512Hash, err
+	return blake2b512Hash, nil
+}
+
+func MakeHash(ctx context.Context, reader io.ReadSeeker) (hash.Hash, error) {
+	return computeHash(ctx, reader, nil)
+}
+
+func MakeFileHash(ctx context.Context, file paranoid.File, onWrite func(buf []byte, len int)) (hash.Hash, error) {
+	osFile, err := file.Open()
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if closeErr := osFile.Close(); closeErr != nil {
+			panic(closeErr)
+		}
+	}()
+
+	blake2b512Hash, err := computeHash(ctx, osFile, onWrite)
+	if err != nil {
+		return nil, err
+	}
+
+	return blake2b512Hash, file.CheckFile(osFile)
 }
