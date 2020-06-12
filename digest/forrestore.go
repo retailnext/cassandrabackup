@@ -42,7 +42,7 @@ func (r ForRestore) Verify(ctx context.Context, reader io.ReadSeeker) error {
 		return err
 	}
 
-	blake2b512Hash, err := blake.Make(ctx, reader)
+	blake2b512Hash, err := blake.MakeHash(ctx, reader)
 	if err != nil {
 		return err
 	}

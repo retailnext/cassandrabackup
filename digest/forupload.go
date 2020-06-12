@@ -17,7 +17,6 @@ package digest
 import (
 	"context"
 
-	"github.com/retailnext/cassandrabackup/digest/parts"
 	"github.com/retailnext/cassandrabackup/paranoid"
 )
 
@@ -28,19 +27,19 @@ type ForUploadFactory interface {
 type awsForUploadFactory struct{}
 
 func (f *awsForUploadFactory) CreateForUpload() ForUpload {
-	return &awsForUpload{}
+	return &AWSForUpload{}
 }
 
-type googleForUploadFactory struct{}
+type gcsForUploadFactory struct{}
 
-func (f *googleForUploadFactory) CreateForUpload() ForUpload {
-	return &googleForUpload{}
+func (f *gcsForUploadFactory) CreateForUpload() ForUpload {
+	return &gcsForUpload{}
 }
 
 type ForUpload interface {
 	UnmarshalBinary(data []byte) error
 	MarshalBinary() ([]byte, error)
 	Populate(ctx context.Context, file paranoid.File) error
-	PartDigests() *parts.PartDigests
 	ForRestore() ForRestore
+	TotalLength() int64
 }

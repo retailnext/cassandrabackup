@@ -16,7 +16,6 @@ package digest
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"io"
 
@@ -25,21 +24,17 @@ import (
 	"github.com/retailnext/cassandrabackup/paranoid"
 )
 
-type awsForUpload struct {
+type AWSForUpload struct {
 	blake2b          blake.Blake2bDigest
 	partDigestsMaker parts.PartDigestsMaker
-	partDigests      parts.PartDigests
+	PartDigests      parts.PartDigests
 }
 
-func (u *awsForUpload) URLSafe() string {
-	return base64.RawURLEncoding.EncodeToString(u.blake2b[:])
+func (u *AWSForUpload) TotalLength() int64 {
+	return u.PartDigests.TotalLength()
 }
 
-func (u *awsForUpload) PartDigests() *parts.PartDigests {
-	return &u.partDigests
-}
-
-func (u *awsForUpload) onWrite(buf []byte, len int) {
+func (u *AWSForUpload) onWrite(buf []byte, len int) {
 	if n, err := u.partDigestsMaker.Write(buf[0:len]); err != nil {
 		panic(err)
 	} else if n != len {
@@ -47,27 +42,27 @@ func (u *awsForUpload) onWrite(buf []byte, len int) {
 	}
 }
 
-func (u *awsForUpload) ForRestore() ForRestore {
+func (u *AWSForUpload) ForRestore() ForRestore {
 	return NewForRestore(u.blake2b)
 }
 
 const partSize = 1024 * 1024 * 64
 
-func (u *awsForUpload) Populate(ctx context.Context, file paranoid.File) error {
+func (u *AWSForUpload) Populate(ctx context.Context, file paranoid.File) error {
 	u.partDigestsMaker.Reset(partSize)
 
-	blake2b512Hash, err := blake.MakeHash(ctx, file, u.onWrite)
+	blake2b512Hash, err := blake.MakeFileHash(ctx, file, u.onWrite)
 	if err != nil {
 		return err
 	}
 
 	u.blake2b.Populate(blake2b512Hash)
-	u.partDigests = u.partDigestsMaker.Finish()
+	u.PartDigests = u.partDigestsMaker.Finish()
 	return nil
 }
 
-func (u *awsForUpload) MarshalBinary() ([]byte, error) {
-	partDigests, err := u.partDigests.MarshalBinary()
+func (u *AWSForUpload) MarshalBinary() ([]byte, error) {
+	partDigests, err := u.PartDigests.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
@@ -81,12 +76,12 @@ func (u *awsForUpload) MarshalBinary() ([]byte, error) {
 	return result, nil
 }
 
-func (u *awsForUpload) UnmarshalBinary(data []byte) error {
+func (u *AWSForUpload) UnmarshalBinary(data []byte) error {
 	if len(data) < 64 {
 		return fmt.Errorf("invalid data")
 	}
 	if copy(u.blake2b[:], data) != 64 {
 		panic("bad copy")
 	}
-	return u.partDigests.UnmarshalBinary(data[64:])
+	return u.PartDigests.UnmarshalBinary(data[64:])
 }

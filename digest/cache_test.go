@@ -72,7 +72,7 @@ func TestCacheAWS(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pd1 := entry1.PartDigests()
+	pd1 := entry1.(*AWSForUpload).PartDigests
 
 	if pd1.TotalLength() != safeFile.Len() {
 		t.Fatalf("wrong entry len %d != %d", pd1.TotalLength(), safeFile.Len())
@@ -104,7 +104,7 @@ func TestCacheAWS(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pd2 := entry2.PartDigests()
+	pd2 := entry2.(*AWSForUpload).PartDigests
 
 	if entry1.ForRestore() != entry2.ForRestore() {
 		t.Fatalf("restore entry mismatch %+v %+v", entry1, entry2)
