@@ -24,8 +24,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/retailnext/cassandrabackup/bucket/config"
+	"github.com/retailnext/cassandrabackup/metrics"
 	"go.etcd.io/bbolt"
 	"go.uber.org/zap"
 )
@@ -114,24 +114,16 @@ func (s *Storage) Close() error {
 }
 
 type Cache struct {
-	storage *Storage
-	name    []byte
-
-	hits       prometheus.Counter
-	misses     prometheus.Counter
-	promotions prometheus.Counter
-	puts       prometheus.Counter
+	storage  *Storage
+	name     []byte
+	counters *metrics.CacheCounters
 }
 
 func (s *Storage) Cache(name string) *Cache {
 	return &Cache{
-		storage: s,
-		name:    []byte(name),
-
-		hits:       getHitsVec.WithLabelValues(name),
-		misses:     getMissesVec.WithLabelValues(name),
-		promotions: getPromotionsVec.WithLabelValues(name),
-		puts:       putsVec.WithLabelValues(name),
+		storage:  s,
+		name:     []byte(name),
+		counters: metrics.NewCacheCounters(name),
 	}
 }
 
@@ -160,19 +152,19 @@ func (c *Cache) Get(key []byte, f WithValueFunc) error {
 		return NotFound
 	})
 	if viewErr != nil {
-		c.misses.Inc()
+		c.counters.Misses.Inc()
 		return viewErr
 	}
-	c.hits.Inc()
+	c.counters.Hits.Inc()
 	if valueToPromote == nil {
 		return nil
 	}
-	c.promotions.Inc()
+	c.counters.Promotions.Inc()
 	return c.put(key, valueToPromote)
 }
 
 func (c *Cache) Put(key, value []byte) error {
-	c.puts.Inc()
+	c.counters.Puts.Inc()
 	return c.put(key, value)
 }
 
@@ -235,38 +227,4 @@ func (s *Storage) currentAndPreviousTopBuckets() ([]byte, []byte) {
 	previous := make([]byte, 8)
 	binary.BigEndian.PutUint64(previous, uint64(previousTs))
 	return current, previous
-}
-
-var (
-	getHitsVec = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace: "cassandrabackup",
-		Subsystem: "cache",
-		Name:      "get_hits_total",
-		Help:      "Number of cache gets that were hits.",
-	}, []string{"cache"})
-	getMissesVec = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace: "cassandrabackup",
-		Subsystem: "cache",
-		Name:      "get_misses_total",
-		Help:      "Number of cache gets that were misses.",
-	}, []string{"cache"})
-	getPromotionsVec = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace: "cassandrabackup",
-		Subsystem: "cache",
-		Name:      "promotions_total",
-		Help:      "Number of cache gets that in promoting a value from the previous bucket.",
-	}, []string{"cache"})
-	putsVec = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Namespace: "cassandrabackup",
-		Subsystem: "cache",
-		Name:      "puts_total",
-		Help:      "Number of cache put requests.",
-	}, []string{"cache"})
-)
-
-func init() {
-	prometheus.MustRegister(getHitsVec)
-	prometheus.MustRegister(getMissesVec)
-	prometheus.MustRegister(getPromotionsVec)
-	prometheus.MustRegister(putsVec)
 }

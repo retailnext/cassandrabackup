@@ -17,9 +17,9 @@ package existscache
 import (
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/retailnext/cassandrabackup/cache"
 	"github.com/retailnext/cassandrabackup/digest"
+	"github.com/retailnext/cassandrabackup/metrics"
 	"github.com/retailnext/cassandrabackup/unixtime"
 	"go.uber.org/zap"
 )
@@ -51,7 +51,7 @@ func (e *ExistsCache) Get(restore digest.ForRestore) bool {
 			exists = true
 			return nil
 		} else {
-			existsCacheLockTimeMisses.Inc()
+			metrics.ExistsCache.ExistsCacheLockTimeMisses.Inc()
 		}
 		return cache.DoNotPromote
 	})
@@ -79,15 +79,4 @@ func (e *ExistsCache) Put(restore digest.ForRestore, lockedUntil time.Time) {
 	if err != nil {
 		zap.S().Warnw("blob_exists_cache_put_error", "key", restore, "err", err)
 	}
-}
-
-var existsCacheLockTimeMisses = prometheus.NewCounter(prometheus.CounterOpts{
-	Namespace: "cassandrabackup",
-	Subsystem: "bucket_exists_cache",
-	Name:      "lock_time_misses_total",
-	Help:      "Number of exists cache misses due to expired/future lock time.",
-})
-
-func init() {
-	prometheus.MustRegister(existsCacheLockTimeMisses)
 }

@@ -20,6 +20,7 @@ import (
 
 	"github.com/retailnext/cassandrabackup/backup"
 	"github.com/retailnext/cassandrabackup/bucket/config"
+	"github.com/retailnext/cassandrabackup/metrics"
 	"go.uber.org/zap"
 )
 
@@ -27,7 +28,7 @@ const snapshotEvery = 1 * time.Hour
 const incrementalEvery = 5 * time.Minute
 
 func Main(ctx context.Context, config *config.Config) error {
-	registerMetrics()
+	metrics.Periodic.RegisterMetrics()
 	lgr := zap.S()
 
 	var lastSnapshotAt time.Time
@@ -48,38 +49,38 @@ DONE:
 
 		now := time.Now()
 		if lastIncrementalAt.Before(now.Add(-incrementalEvery)) {
-			backupInProgressGauges.WithLabelValues("incremental").Set(1)
+			metrics.Periodic.BackupInProgressGauges.WithLabelValues("incremental").Set(1)
 			lgr.Infow("starting_backup", "type", "incremental")
 			err = backup.DoIncremental(ctx, config)
-			backupInProgressGauges.WithLabelValues("incremental").Set(0)
+			metrics.Periodic.BackupInProgressGauges.WithLabelValues("incremental").Set(0)
 			now = time.Now()
 			if err == nil {
 				lastIncrementalAt = now
-				lastBackupAtGauges.WithLabelValues("incremental").Set(float64(now.Unix()))
-				lastBackupOkGauges.WithLabelValues("incremental").Set(1)
-				backupCompletedCounters.WithLabelValues("incremental").Inc()
+				metrics.Periodic.LastBackupAtGauges.WithLabelValues("incremental").Set(float64(now.Unix()))
+				metrics.Periodic.LastBackupOkGauges.WithLabelValues("incremental").Set(1)
+				metrics.Periodic.BackupCompletedCounters.WithLabelValues("incremental").Inc()
 				lgr.Infow("backup_complete", "type", "incremental")
 
 			} else {
-				lastBackupOkGauges.WithLabelValues("incremental").Set(0)
+				metrics.Periodic.LastBackupOkGauges.WithLabelValues("incremental").Set(0)
 				lgr.Errorw("backup_error", "type", "incremental", "err", err)
-				backupErrorCounters.WithLabelValues("incremental").Inc()
+				metrics.Periodic.BackupErrorCounters.WithLabelValues("incremental").Inc()
 			}
 		} else if lastSnapshotAt.Before(now.Add(-snapshotEvery)) {
-			backupInProgressGauges.WithLabelValues("snapshot").Set(1)
+			metrics.Periodic.BackupInProgressGauges.WithLabelValues("snapshot").Set(1)
 			lgr.Infow("starting_backup", "type", "snapshot")
 			err = backup.DoSnapshotBackup(ctx, config)
-			backupInProgressGauges.WithLabelValues("snapshot").Set(0)
+			metrics.Periodic.BackupInProgressGauges.WithLabelValues("snapshot").Set(0)
 			now = time.Now()
 			if err == nil {
 				lastSnapshotAt = now
-				lastBackupAtGauges.WithLabelValues("snapshot").Set(float64(now.Unix()))
-				lastBackupOkGauges.WithLabelValues("snapshot").Set(1)
-				backupCompletedCounters.WithLabelValues("snapshot").Inc()
+				metrics.Periodic.LastBackupAtGauges.WithLabelValues("snapshot").Set(float64(now.Unix()))
+				metrics.Periodic.LastBackupOkGauges.WithLabelValues("snapshot").Set(1)
+				metrics.Periodic.BackupCompletedCounters.WithLabelValues("snapshot").Inc()
 				lgr.Infow("backup_complete", "type", "snapshot")
 			} else {
-				lastBackupOkGauges.WithLabelValues("snapshot").Set(0)
-				backupErrorCounters.WithLabelValues("snapshot").Inc()
+				metrics.Periodic.LastBackupOkGauges.WithLabelValues("snapshot").Set(0)
+				metrics.Periodic.BackupErrorCounters.WithLabelValues("snapshot").Inc()
 				lgr.Errorw("backup_error", "type", "snapshot", "err", err)
 			}
 		}
