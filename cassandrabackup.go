@@ -16,18 +16,17 @@ package main
 
 import (
 	"context"
-	"net/http"
 	"os"
 	"os/signal"
 	"runtime/pprof"
 
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/retailnext/cassandrabackup/backup"
 	"github.com/retailnext/cassandrabackup/bucket"
 	"github.com/retailnext/cassandrabackup/bucket/config"
 	"github.com/retailnext/cassandrabackup/cache"
 	"github.com/retailnext/cassandrabackup/manifests"
+	"github.com/retailnext/cassandrabackup/metrics"
 	"github.com/retailnext/cassandrabackup/periodic"
 	"github.com/retailnext/cassandrabackup/restore"
 	"github.com/retailnext/cassandrabackup/unixtime"
@@ -73,17 +72,6 @@ func setupInterruptContext() (context.Context, func()) {
 	return ctx, onExit
 }
 
-func setupPrometheus() {
-	if metricsListenAddress == nil || *metricsListenAddress == "" {
-		return
-	}
-	go func() {
-		http.Handle(*metricsPath, promhttp.Handler())
-		err := http.ListenAndServe(*metricsListenAddress, nil)
-		zap.S().Fatalw("metrics_listen_error", "err", err)
-	}()
-}
-
 func setupProfile() func() {
 	if pprofFile == nil || *pprofFile == "" {
 		return func() {
@@ -122,18 +110,40 @@ var (
 	listHostsCmdCluster = listHostsCmd.Flag("cluster", "Cluster name").Required().String()
 	listClustersCmd     = listCmd.Command("clusters", "List clusters")
 
-	bucketName             = kingpin.Flag("s3-bucket", "S3 bucket name.").Required().String()
-	bucketRegion           = kingpin.Flag("s3-region", "S3 bucket region.").Envar("AWS_REGION").Required().String()
-	bucketKeyPrefix        = kingpin.Flag("s3-key-prefix", "Set the prefix for files in the S3 bucket").Default("/").String()
-	bucketBlobStorageClass = kingpin.Flag("s3-storage-class", "Set the storage class for files in S3").Default(s3.StorageClassStandardIa).String()
-	provider               = kingpin.Flag("cloud-provider", "Cloud provider.").Required().String()
+	bucketName      = kingpin.Flag("bucket", "S3 or Google Cloud Storage bucket name.").Required().String()
+	bucketRegion    = kingpin.Flag("region", "S3 or Google Cloud Storage bucket region.").String()
+	bucketKeyPrefix = kingpin.Flag("key-prefix", "Set the prefix for files in the bucket").Default("/").String()
+	s3StorageClass  = kingpin.Flag("s3-storage-class", "Set the storage class for files in S3").Default(s3.StorageClassStandardIa).String()
+	provider        = kingpin.Flag("cloud-provider", "Cloud provider. ["+config.ProviderAWS+" or "+config.ProviderGoogle+"]").Default(config.ProviderAWS).String()
 
 	sharedCacheFile = kingpin.Flag("cache-file", "Location of local cache file.").Required().String()
 )
 
-func main() {
+func parseOptions() (string, *config.Config) {
 	kingpin.UsageTemplate(kingpin.CompactUsageTemplate)
 	cmd := kingpin.Parse()
+
+	if *provider == config.ProviderAWS && *bucketRegion == "" {
+		*bucketRegion = os.Getenv("AWS_REGION")
+	}
+	if *bucketRegion == "" {
+		kingpin.Fatalf("required flag --%s not provided", "region")
+	}
+
+	config := &config.Config{
+		Provider:        *provider,
+		BucketName:      *bucketName,
+		BucketRegion:    *bucketRegion,
+		BucketKeyPrefix: *bucketKeyPrefix,
+		S3StorageClass:  *s3StorageClass,
+		SharedCacheFile: *sharedCacheFile,
+	}
+
+	return cmd, config
+}
+
+func main() {
+	cmd, config := parseOptions()
 
 	sync := setupLogger()
 	defer sync()
@@ -145,7 +155,7 @@ func main() {
 	stopProfile := setupProfile()
 	defer stopProfile()
 
-	setupPrometheus()
+	metrics.SetupPrometheus(metricsListenAddress, metricsPath)
 
 	defer func() {
 		if cache.Shared != nil {
@@ -154,15 +164,6 @@ func main() {
 			}
 		}
 	}()
-
-	config := &config.Config{
-		Provider:               *provider,
-		BucketName:             *bucketName,
-		BucketRegion:           *bucketRegion,
-		BucketKeyPrefix:        *bucketKeyPrefix,
-		BucketBlobStorageClass: *bucketBlobStorageClass,
-		SharedCacheFile:        *sharedCacheFile,
-	}
 
 	switch cmd {
 	case "backup snapshot":
