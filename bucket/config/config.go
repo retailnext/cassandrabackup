@@ -5,19 +5,34 @@ import (
 	"time"
 )
 
-const PutJsonRetriesLimit = 3
-const GetJsonRetriesLimit = 3
-const GetBlobRetriesLimit = 3
-const ListManifestsRetriesLimit = 3
-const RetrySleepPerAttempt = time.Second
+const (
+	PutJsonRetriesLimit       = 3
+	GetJsonRetriesLimit       = 3
+	GetBlobRetriesLimit       = 3
+	ListManifestsRetriesLimit = 3
+	RetrySleepPerAttempt      = time.Second
+)
 
-type Config struct {
-	Provider               string
-	BucketName             string
-	BucketRegion           string
-	BucketKeyPrefix        string
-	BucketBlobStorageClass string
-	SharedCacheFile        string
-}
+const (
+	ProviderAWS    = "aws"
+	ProviderGoogle = "google"
+)
 
 var UploadSkipped = errors.New("upload skipped")
+
+type Config struct {
+	Provider        string
+	BucketName      string
+	BucketRegion    string
+	BucketKeyPrefix string
+	S3StorageClass  string
+	SharedCacheFile string
+}
+
+func (c *Config) IsAWS() bool {
+	return c.Provider == ProviderAWS
+}
+
+func (c *Config) IsGCS() bool {
+	return c.Provider == ProviderGoogle
+}

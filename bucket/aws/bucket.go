@@ -58,7 +58,7 @@ func NewAWSClient(config *config.Config) *awsClient {
 			S3:                   s3Svc,
 			Bucket:               config.BucketName,
 			ServerSideEncryption: aws.String(s3.ServerSideEncryptionAes256),
-			StorageClass:         aws.String(config.BucketBlobStorageClass),
+			StorageClass:         aws.String(config.S3StorageClass),
 		},
 		downloader: s3manager.NewDownloaderWithClient(s3Svc, func(d *s3manager.Downloader) {
 			d.PartSize = 64 * 1024 * 1024 // 64MB per part

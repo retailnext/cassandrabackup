@@ -49,9 +49,9 @@ var (
 
 func OpenShared(config *config.Config) Client {
 	once.Do(func() {
-		if config.Provider == "aws" {
+		if config.IsAWS() {
 			Shared = aws.NewAWSClient(config)
-		} else if config.Provider == "google" {
+		} else if config.IsGCS() {
 			Shared = google.NewGCSClient(config)
 		} else {
 			err := fmt.Errorf("cloud provider not supported: %s", config.Provider)

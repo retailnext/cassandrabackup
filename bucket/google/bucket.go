@@ -17,6 +17,7 @@ package google
 import (
 	"context"
 	"strings"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/retailnext/cassandrabackup/bucket/config"
@@ -30,8 +31,8 @@ type gcsClient struct {
 	storageClient *storage.Client
 	existsCache   *existscache.ExistsCache
 
-	keyStore             keystore.KeyStore
-	serverSideEncryption *string
+	keyStore        keystore.KeyStore
+	objectRetention time.Duration
 }
 
 func NewGCSClient(config *config.Config) *gcsClient {
@@ -49,19 +50,24 @@ func NewGCSClient(config *config.Config) *gcsClient {
 		keyStore:      keystore.NewKeyStore(config.BucketName, strings.Trim(config.BucketKeyPrefix, "/")),
 	}
 
-	//c.validateEncryptionConfiguration()
+	c.validateBucketConfiguration()
 
 	return c
 }
 
-func (c *gcsClient) validateEncryptionConfiguration() {
+func (c *gcsClient) validateBucketConfiguration() {
 	ctx := context.Background()
 	attrs, err := c.storageClient.Bucket(c.keyStore.Bucket).Attrs(ctx)
 	if err != nil {
 		zap.S().Fatalw("failed_to_validate_bucket_encryption", "err", err)
 	}
-	if attrs.Encryption != nil {
-		return
-	}
-	zap.S().Fatalw("bucket_not_configured_with_customer_managed_key", "bucket", c.keyStore.Bucket)
+
+	c.objectRetention = attrs.RetentionPolicy.RetentionPeriod
+
+	// TODO: (ID) we might want to check the encryption configuration, retention and other things
+
+	// if attrs.Encryption != nil {
+	// 	return
+	// }
+	// zap.S().Fatalw("bucket_not_configured_with_customer_managed_key", "bucket", c.keyStore.Bucket)
 }

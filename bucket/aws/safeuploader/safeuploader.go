@@ -37,7 +37,7 @@ type SafeUploader struct {
 	StorageClass         *string
 }
 
-func (u *SafeUploader) UploadFile(ctx context.Context, key string, file paranoid.File, digests digest.ForUpload) error {
+func (u *SafeUploader) UploadFile(ctx context.Context, key string, file paranoid.File, digests *digest.AWSForUpload) error {
 	upl := fileUploader{
 		s3Svc: u.S3,
 
@@ -65,7 +65,7 @@ type fileUploader struct {
 
 	file    paranoid.File
 	osFile  *os.File
-	digests digest.ForUpload
+	digests *digest.AWSForUpload
 
 	ctx       context.Context
 	ctxCancel context.CancelFunc
@@ -80,7 +80,7 @@ type fileUploader struct {
 }
 
 func (u *fileUploader) Upload(ctx context.Context) error {
-	pd := u.digests.PartDigests()
+	pd := u.digests.PartDigests
 	if osFile, err := u.file.Open(); err != nil {
 		return err
 	} else {
@@ -142,7 +142,7 @@ func (u *fileUploader) tryToComplete() error {
 
 	var parts []*s3.CompletedPart
 	var partNumber int64
-	for partNumber = 1; partNumber <= u.digests.PartDigests().Parts(); partNumber++ {
+	for partNumber = 1; partNumber <= u.digests.PartDigests.Parts(); partNumber++ {
 		etag, etagOk := u.etags[partNumber]
 		if !etagOk {
 			if len(u.errors) == 0 {
@@ -204,7 +204,7 @@ func (u *fileUploader) uploadPart(partNumber int64) {
 		u.wg.Done()
 	}()
 
-	pd := u.digests.PartDigests()
+	pd := u.digests.PartDigests
 	offset := pd.PartOffset(partNumber)
 	length := pd.PartLength(partNumber)
 	reader := io.NewSectionReader(u.osFile, offset, length)
@@ -232,7 +232,7 @@ func (u *fileUploader) uploadPart(partNumber int64) {
 }
 
 func (u *fileUploader) uploadSinglePart(ctx context.Context) error {
-	pd := u.digests.PartDigests()
+	pd := u.digests.PartDigests
 	putObjectInput := s3.PutObjectInput{
 		Bucket:               &u.bucket,
 		Key:                  &u.key,
