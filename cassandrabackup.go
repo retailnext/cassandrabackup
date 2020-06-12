@@ -108,7 +108,8 @@ var (
 
 	listHostsCmd        = listCmd.Command("hosts", "List hosts in a cluster")
 	listHostsCmdCluster = listHostsCmd.Flag("cluster", "Cluster name").Required().String()
-	listClustersCmd     = listCmd.Command("clusters", "List clusters")
+
+	_ = listCmd.Command("clusters", "List clusters")
 
 	bucketName      = kingpin.Flag("bucket", "S3 or Google Cloud Storage bucket name.").Required().String()
 	bucketRegion    = kingpin.Flag("region", "S3 or Google Cloud Storage bucket region.").String()
