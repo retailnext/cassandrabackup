@@ -13,7 +13,6 @@ require (
 	go.etcd.io/bbolt v1.3.4
 	go.uber.org/zap v1.15.0
 	golang.org/x/crypto v0.0.0-20200604202706-70a84ac30bf9
-	golang.org/x/lint v0.0.0-20191125180803-fdd1cda4f05f // indirect
 	golang.org/x/text v0.3.2 // indirect
 	google.golang.org/api v0.26.0
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
