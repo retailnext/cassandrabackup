@@ -43,15 +43,8 @@ func (c *gcsClient) PutManifest(ctx context.Context, absoluteKey string, manifes
 		wc.ObjectAttrs.ContentType = "application/json"
 		wc.ObjectAttrs.ContentEncoding = "gzip"
 
-		if err := func() error {
-			if _, err := io.Copy(wc, bytes.NewReader(encodeBuffer.Bytes())); err != nil {
-				return err
-			}
-			if err := wc.Close(); err != nil {
-				return err
-			}
-			return nil
-		}(); err != nil {
+		if _, err := io.Copy(wc, bytes.NewReader(encodeBuffer.Bytes())); err != nil {
+			wc.Close()
 			attempts++
 			if ctxErr := ctx.Err(); ctxErr != nil {
 				return ctxErr
@@ -62,6 +55,9 @@ func (c *gcsClient) PutManifest(ctx context.Context, absoluteKey string, manifes
 			zap.S().Warnw("put_manifest_error", "err", err, "attempts", attempts)
 			time.Sleep(time.Duration(attempts) * config.RetrySleepPerAttempt)
 		} else {
+			if err := wc.Close(); err != nil {
+				return err
+			}
 			return nil
 		}
 	}
@@ -72,6 +68,7 @@ func (c *gcsClient) GetManifest(ctx context.Context, absoluteKey string) (manife
 	for {
 		rc, err := c.storageClient.Bucket(c.keyStore.Bucket).Object(absoluteKey).NewReader(ctx)
 		if err != nil {
+			rc.Close()
 			attempts++
 			if ctxErr := ctx.Err(); ctxErr != nil {
 				return manifests.Manifest{}, ctxErr
@@ -83,8 +80,8 @@ func (c *gcsClient) GetManifest(ctx context.Context, absoluteKey string) (manife
 			time.Sleep(time.Duration(attempts) * config.RetrySleepPerAttempt)
 		} else {
 			var manifest manifests.Manifest
-			err = easyjson.UnmarshalFromReader(rc, &manifest)
-			return manifest, err
+			defer rc.Close()
+			return manifest, easyjson.UnmarshalFromReader(rc, &manifest)
 		}
 	}
 }

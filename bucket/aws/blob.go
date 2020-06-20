@@ -16,48 +16,21 @@ package aws
 
 import (
 	"context"
-	"io"
 	"os"
 
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/retailnext/cassandrabackup/bucket/config"
-	"github.com/retailnext/cassandrabackup/bucket/keystore"
 	"github.com/retailnext/cassandrabackup/digest"
-	"github.com/retailnext/cassandrabackup/metrics"
 	"github.com/retailnext/cassandrabackup/paranoid"
 	"go.uber.org/zap"
 )
 
-func (c *awsClient) KeyStore() *keystore.KeyStore {
-	return &c.keyStore
-}
-
-func (c *awsClient) PutBlob(ctx context.Context, file paranoid.File, digests digest.ForUpload) error {
+func (c *awsClient) UploadBlob(ctx context.Context, file paranoid.File, digests digest.ForUpload) error {
 	key := c.keyStore.AbsoluteKeyForBlob(digests.ForRestore())
-	if exists, err := c.blobExists(ctx, digests); err != nil {
-		metrics.Bucket.UploadErrors.Inc()
-		return err
-	} else if exists {
-		metrics.Bucket.SkippedFiles.Inc()
-		metrics.Bucket.SkippedBytes.Add(float64(file.Len()))
-		return config.UploadSkipped
-	}
-
 	awsDigests, ok := digests.(*digest.AWSForUpload)
 	if !ok {
 		panic("needs to be AWSForUpload")
 	}
-
-	if err := c.uploader.UploadFile(ctx, key, file, awsDigests); err != nil {
-		metrics.Bucket.UploadErrors.Inc()
-		if ctxErr := ctx.Err(); ctxErr != nil {
-			return ctxErr
-		}
-		return err
-	}
-	metrics.Bucket.UploadedFiles.Inc()
-	metrics.Bucket.UploadedBytes.Add(float64(file.Len()))
-	return nil
+	return c.uploader.UploadFile(ctx, key, file, awsDigests)
 }
 
 func (c *awsClient) DownloadBlob(ctx context.Context, digests digest.ForRestore, file *os.File) error {
@@ -66,31 +39,11 @@ func (c *awsClient) DownloadBlob(ctx context.Context, digests digest.ForRestore,
 		Bucket: &c.keyStore.Bucket,
 		Key:    &key,
 	}
-	attempts := 0
-	for {
-		if _, err := file.Seek(0, io.SeekStart); err != nil {
-			zap.S().Panicw("get_blob_seek_error", "err", err)
-		}
-		if err := file.Truncate(0); err != nil {
-			zap.S().Panicw("get_blob_truncate_error", "err", err)
-		}
-		_, err := c.downloader.DownloadWithContext(ctx, file, getObjectInput)
-		if err != nil {
-			attempts++
-			if ctxErr := ctx.Err(); ctxErr != nil {
-				return ctxErr
-			}
-			if IsNoSuchKey(err) || attempts > config.GetBlobRetriesLimit {
-				return err
-			}
-			zap.S().Errorw("get_blob_s3_error", "err", err, "attempts", attempts)
-		} else {
-			return digests.Verify(ctx, file)
-		}
-	}
+	_, err := c.downloader.DownloadWithContext(ctx, file, getObjectInput)
+	return err
 }
 
-func (c *awsClient) blobExists(ctx context.Context, digests digest.ForUpload) (bool, error) {
+func (c *awsClient) BlobExists(ctx context.Context, digests digest.ForUpload) (bool, error) {
 	if c.existsCache.Get(digests.ForRestore()) {
 		return true, nil
 	}

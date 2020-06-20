@@ -18,7 +18,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/retailnext/cassandrabackup/bucket/config"
+	"github.com/retailnext/cassandrabackup/bucket"
 	"go.uber.org/zap"
 )
 
@@ -53,13 +53,13 @@ func (p *processor) uploadFile(record fileRecord, wg *sync.WaitGroup, limiter <-
 		return
 	}
 
-	record.UploadError = p.bucketClient.PutBlob(p.ctx, record.File, record.Digests)
+	record.UploadError = bucket.PutBlob(p.ctx, p.bucketClient, record.File, record.Digests)
 	switch record.UploadError {
 	case nil:
 		lgr.Debugw("upload_done", "path", record.File.Name(), "size", record.File.Len())
 	case context.Canceled:
 		lgr.Infow("upload_cancelled", "path", record.File.Name(), "size", record.File.Len())
-	case config.UploadSkipped:
+	case bucket.UploadSkipped:
 		lgr.Debugw("upload_skipped", "path", record.File.Name(), "size", record.File.Len())
 	default:
 		lgr.Warnw("upload_failed", "path", record.File.Name(), "err", record.UploadError)

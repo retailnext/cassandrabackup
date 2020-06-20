@@ -1,7 +1,6 @@
 package config
 
 import (
-	"errors"
 	"time"
 )
 
@@ -18,13 +17,11 @@ const (
 	ProviderGoogle = "google"
 )
 
-var UploadSkipped = errors.New("upload skipped")
-
 type Config struct {
 	Provider        string
 	BucketName      string
-	BucketRegion    string
 	BucketKeyPrefix string
+	S3BucketRegion  string
 	S3StorageClass  string
 	SharedCacheFile string
 }

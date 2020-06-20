@@ -17,7 +17,7 @@ package backup
 import (
 	"context"
 
-	"github.com/retailnext/cassandrabackup/bucket/config"
+	"github.com/retailnext/cassandrabackup/bucket"
 	"github.com/retailnext/cassandrabackup/digest"
 	"github.com/retailnext/cassandrabackup/manifests"
 	"go.uber.org/zap"
@@ -48,7 +48,7 @@ func (p *processor) finish() error {
 			}
 			continue
 		}
-		if record.UploadError != nil && record.UploadError != config.UploadSkipped {
+		if record.UploadError != nil && record.UploadError != bucket.UploadSkipped {
 			p.cleanupHandler.MarkUploadFailure(record.File)
 			lgr.Errorw("upload_error", "path", record.File.Name(), "err", record.UploadError)
 			hadFailures = true
@@ -79,7 +79,7 @@ func (p *processor) finish() error {
 		if p.manifest.ManifestType == manifests.ManifestTypeInvalid {
 			panic("invalid manifest type")
 		}
-		absoluteKey := p.bucketClient.KeyStore().AbsoluteKeyForManifest(p.identity, p.manifest.Key())
+		absoluteKey := bucket.KeyStore.AbsoluteKeyForManifest(p.identity, p.manifest.Key())
 		if err := p.bucketClient.PutManifest(context.Background(), absoluteKey, p.manifest); err != nil {
 			lgr.Errorw("manifest_put_error", "err", err)
 			p.cleanupHandler.MarkManifestUploadFailure()

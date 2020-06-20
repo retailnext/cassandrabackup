@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/retailnext/cassandrabackup/bucket/aws"
@@ -38,21 +39,24 @@ type Client interface {
 	ListHostNames(ctx context.Context, cluster string) ([]manifests.NodeIdentity, error)
 	ListClusters(ctx context.Context) ([]string, error)
 	DownloadBlob(ctx context.Context, digests digest.ForRestore, file *os.File) error
-	PutBlob(ctx context.Context, file paranoid.File, digests digest.ForUpload) error
-	KeyStore() *keystore.KeyStore
+	UploadBlob(ctx context.Context, file paranoid.File, digests digest.ForUpload) error
+	BlobExists(ctx context.Context, digests digest.ForUpload) (bool, error)
 }
 
 var (
-	Shared Client
-	once   sync.Once
+	Shared   Client
+	KeyStore *keystore.KeyStore
+	once     sync.Once
 )
 
 func OpenShared(config *config.Config) Client {
 	once.Do(func() {
+		KeyStore = keystore.NewKeyStore(config.BucketName, strings.Trim(config.BucketKeyPrefix, "/"))
+
 		if config.IsAWS() {
-			Shared = aws.NewAWSClient(config)
+			Shared = aws.NewAWSClient(config, KeyStore)
 		} else if config.IsGCS() {
-			Shared = google.NewGCSClient(config)
+			Shared = google.NewGCSClient(config, KeyStore)
 		} else {
 			err := fmt.Errorf("cloud provider not supported: %s", config.Provider)
 			zap.S().Fatalw("cloud_provider_error", "err", err)
@@ -70,7 +74,7 @@ func GetManifests(ctx context.Context, c Client, identity manifests.NodeIdentity
 			return nil, nil
 		default:
 		}
-		absoluteKey := c.KeyStore().AbsoluteKeyForManifest(identity, manifestKey)
+		absoluteKey := KeyStore.AbsoluteKeyForManifest(identity, manifestKey)
 		manifest, err := c.GetManifest(ctx, absoluteKey)
 		if err != nil {
 			zap.S().Errorw("get_manifest_error", "key", absoluteKey, "err", err)
