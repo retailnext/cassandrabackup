@@ -146,7 +146,7 @@ func (w *worker) restoreFile(name string, forRestore digest.ForRestore) {
 
 	err = w.target.WriteFile(name, func(file *os.File) error {
 		start := time.Now()
-		downloadErr := w.client.DownloadBlob(w.ctx, forRestore, file)
+		downloadErr := bucket.GetBlob(w.ctx, w.client, forRestore, file)
 		if downloadErr != nil {
 			metrics.Restore.DownloadErrors.Inc()
 			return downloadErr

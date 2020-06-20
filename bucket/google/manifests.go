@@ -16,6 +16,7 @@ package google
 
 import (
 	"context"
+	"math"
 	"path/filepath"
 
 	"cloud.google.com/go/storage"
@@ -33,9 +34,13 @@ func (c *gcsClient) ListManifests(ctx context.Context, identity manifests.NodeId
 		Delimiter: "/",
 		Prefix:    prefixKey,
 	}
+	err := query.SetAttrSelection([]string{"Name"})
+	if err != nil {
+		lgr.Errorw("set_attr_selection", "err", err)
+	}
 
 	if notAfter == 0 {
-		notAfter = unixtime.Seconds(^uint(0) >> 1)
+		notAfter = unixtime.Seconds(math.MaxInt64)
 	}
 	startAfterKey := c.keyStore.AbsoluteKeyForManifestTimeRange(identity, startAfter)
 	notAfterKey := c.keyStore.AbsoluteKeyForManifestTimeRange(identity, notAfter)

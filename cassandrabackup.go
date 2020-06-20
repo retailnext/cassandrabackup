@@ -112,8 +112,8 @@ var (
 	_ = listCmd.Command("clusters", "List clusters")
 
 	bucketName      = kingpin.Flag("bucket", "S3 or Google Cloud Storage bucket name.").Required().String()
-	bucketRegion    = kingpin.Flag("region", "S3 or Google Cloud Storage bucket region.").String()
 	bucketKeyPrefix = kingpin.Flag("key-prefix", "Set the prefix for files in the bucket").Default("/").String()
+	s3BucketRegion  = kingpin.Flag("s3-region", "S3 bucket region.").String()
 	s3StorageClass  = kingpin.Flag("s3-storage-class", "Set the storage class for files in S3").Default(s3.StorageClassStandardIa).String()
 	provider        = kingpin.Flag("cloud-provider", "Cloud provider. ["+config.ProviderAWS+" or "+config.ProviderGoogle+"]").Default(config.ProviderAWS).String()
 
@@ -124,18 +124,18 @@ func parseOptions() (string, *config.Config) {
 	kingpin.UsageTemplate(kingpin.CompactUsageTemplate)
 	cmd := kingpin.Parse()
 
-	if *provider == config.ProviderAWS && *bucketRegion == "" {
-		*bucketRegion = os.Getenv("AWS_REGION")
-	}
-	if *bucketRegion == "" {
-		kingpin.Fatalf("required flag --%s not provided", "region")
+	if *provider == config.ProviderAWS && *s3BucketRegion == "" {
+		*s3BucketRegion = os.Getenv("AWS_REGION")
+		if *s3BucketRegion == "" {
+			kingpin.Fatalf("required flag --%s not provided", "s3-region")
+		}
 	}
 
 	config := &config.Config{
 		Provider:        *provider,
 		BucketName:      *bucketName,
-		BucketRegion:    *bucketRegion,
 		BucketKeyPrefix: *bucketKeyPrefix,
+		S3BucketRegion:  *s3BucketRegion,
 		S3StorageClass:  *s3StorageClass,
 		SharedCacheFile: *sharedCacheFile,
 	}

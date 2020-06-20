@@ -31,8 +31,8 @@ type KeyStore struct {
 	Prefix string
 }
 
-func NewKeyStore(bucket, prefix string) KeyStore {
-	return KeyStore{bucket, prefix}
+func NewKeyStore(bucket, prefix string) *KeyStore {
+	return &KeyStore{bucket, prefix}
 }
 
 func (c *KeyStore) keyWithPrefix(key string) string {
