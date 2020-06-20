@@ -1,7 +1,6 @@
 package config
 
 import (
-	"errors"
 	"time"
 )
 
@@ -17,8 +16,6 @@ const (
 	ProviderAWS    = "aws"
 	ProviderGoogle = "google"
 )
-
-var UploadSkipped = errors.New("upload skipped")
 
 type Config struct {
 	Provider        string

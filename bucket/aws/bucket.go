@@ -15,8 +15,6 @@
 package aws
 
 import (
-	"strings"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -33,16 +31,15 @@ import (
 )
 
 type awsClient struct {
-	s3Svc       s3iface.S3API
-	uploader    *safeuploader.SafeUploader
-	downloader  s3manageriface.DownloaderAPI
-	existsCache *existscache.ExistsCache
-
-	keyStore             keystore.KeyStore
+	s3Svc                s3iface.S3API
+	uploader             *safeuploader.SafeUploader
+	downloader           s3manageriface.DownloaderAPI
+	existsCache          *existscache.ExistsCache
+	keyStore             *keystore.KeyStore
 	serverSideEncryption *string
 }
 
-func NewAWSClient(config *config.Config) *awsClient {
+func NewAWSClient(config *config.Config, keyStore *keystore.KeyStore) *awsClient {
 	cache.OpenShared(config)
 
 	awsConf := aws.NewConfig().WithRegion(config.BucketRegion)
@@ -64,7 +61,7 @@ func NewAWSClient(config *config.Config) *awsClient {
 			d.PartSize = 64 * 1024 * 1024 // 64MB per part
 		}),
 		existsCache:          existscache.NewExistsCache(),
-		keyStore:             keystore.NewKeyStore(config.BucketName, strings.Trim(config.BucketKeyPrefix, "/")),
+		keyStore:             keyStore,
 		serverSideEncryption: aws.String(s3.ServerSideEncryptionAes256),
 	}
 	c.validateEncryptionConfiguration()

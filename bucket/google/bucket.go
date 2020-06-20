@@ -16,7 +16,6 @@ package google
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -28,14 +27,13 @@ import (
 )
 
 type gcsClient struct {
-	storageClient *storage.Client
-	existsCache   *existscache.ExistsCache
-
-	keyStore        keystore.KeyStore
+	storageClient   *storage.Client
+	existsCache     *existscache.ExistsCache
+	keyStore        *keystore.KeyStore
 	objectRetention time.Duration
 }
 
-func NewGCSClient(config *config.Config) *gcsClient {
+func NewGCSClient(config *config.Config, keyStore *keystore.KeyStore) *gcsClient {
 	cache.OpenShared(config)
 
 	ctx := context.Background()
@@ -47,7 +45,7 @@ func NewGCSClient(config *config.Config) *gcsClient {
 	c := &gcsClient{
 		storageClient: storageClient,
 		existsCache:   existscache.NewExistsCache(),
-		keyStore:      keystore.NewKeyStore(config.BucketName, strings.Trim(config.BucketKeyPrefix, "/")),
+		keyStore:      keyStore,
 	}
 
 	c.validateBucketConfiguration()
