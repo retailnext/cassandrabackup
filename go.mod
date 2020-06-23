@@ -7,7 +7,7 @@ require (
 	github.com/gocql/gocql v0.0.0-20200615160627-420e3b873d91
 	github.com/golang/snappy v0.0.1 // indirect
 	github.com/mailru/easyjson v0.7.1
-	github.com/prometheus/client_golang v1.7.0
+	github.com/prometheus/client_golang v1.7.1
 	github.com/retailnext/writefile v0.1.0
 	go.etcd.io/bbolt v1.3.5
 	go.uber.org/zap v1.15.0
