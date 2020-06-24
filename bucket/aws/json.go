@@ -38,16 +38,16 @@ func (c *awsClient) PutManifest(ctx context.Context, absoluteKey string, manifes
 		panic(err)
 	}
 
-	putObjectInput := &s3.PutObjectInput{
-		Bucket:               &c.keyStore.Bucket,
-		Key:                  &absoluteKey,
-		ContentType:          aws.String("application/json"),
-		ContentEncoding:      aws.String("gzip"),
-		ServerSideEncryption: c.serverSideEncryption,
-		Body:                 bytes.NewReader(encodeBuffer.Bytes()),
-	}
 	attempts := 0
 	for {
+		putObjectInput := &s3.PutObjectInput{
+			Bucket:               &c.keyStore.Bucket,
+			Key:                  &absoluteKey,
+			ContentType:          aws.String("application/json"),
+			ContentEncoding:      aws.String("gzip"),
+			ServerSideEncryption: c.serverSideEncryption,
+			Body:                 bytes.NewReader(encodeBuffer.Bytes()),
+		}
 		_, err := c.s3Svc.PutObjectWithContext(ctx, putObjectInput)
 		if err != nil {
 			attempts++

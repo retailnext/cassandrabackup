@@ -54,14 +54,11 @@ func (c *gcsClient) UploadBlob(ctx context.Context, file paranoid.File, digests 
 func (c *gcsClient) DownloadBlob(ctx context.Context, digests digest.ForRestore, file *os.File) error {
 	key := c.keyStore.AbsoluteKeyForBlob(digests)
 	sourceReader, err := c.storageClient.Bucket(c.keyStore.Bucket).Object(key).NewReader(ctx)
-	defer func() {
-		if closeErr := sourceReader.Close(); closeErr != nil {
-			panic(closeErr)
-		}
-	}()
 	if err != nil {
 		return err
 	}
+	defer sourceReader.Close()
+
 	_, err = io.Copy(file, sourceReader)
 	return err
 }
