@@ -6,7 +6,7 @@ require (
 	github.com/go-test/deep v1.0.7
 	github.com/gocql/gocql v0.0.0-20200624222514-34081eda590e
 	github.com/golang/snappy v0.0.1 // indirect
-	github.com/mailru/easyjson v0.7.2
+	github.com/mailru/easyjson v0.7.3
 	github.com/prometheus/client_golang v1.7.1
 	github.com/retailnext/writefile v0.1.0
 	go.etcd.io/bbolt v1.3.5
