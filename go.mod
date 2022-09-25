@@ -10,7 +10,7 @@ require (
 	github.com/retailnext/writefile v0.1.0
 	go.etcd.io/bbolt v1.3.5
 	go.uber.org/zap v1.16.0
-	golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897
+	golang.org/x/crypto v0.0.0-20220924013350-4ba4fb4dd9e7
 	golang.org/x/lint v0.0.0-20191125180803-fdd1cda4f05f // indirect
 	golang.org/x/tools v0.0.0-20200114191411-189207f339b7 // indirect
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
