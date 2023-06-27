@@ -6,7 +6,7 @@ require (
 	github.com/go-test/deep v1.1.0
 	github.com/gocql/gocql v1.5.2
 	github.com/mailru/easyjson v0.7.6
-	github.com/prometheus/client_golang v1.11.1
+	github.com/prometheus/client_golang v1.16.0
 	github.com/retailnext/writefile v0.1.0
 	go.etcd.io/bbolt v1.3.7
 	go.uber.org/zap v1.24.0
@@ -26,15 +26,15 @@ require (
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
-	github.com/prometheus/common v0.26.0 // indirect
+	github.com/prometheus/common v0.42.0 // indirect
 	github.com/prometheus/procfs v0.10.1 // indirect
+	github.com/rogpeppe/go-internal v1.10.0 // indirect
 	github.com/xhit/go-str2duration/v2 v2.1.0 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/sys v0.9.0 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
 go 1.20
