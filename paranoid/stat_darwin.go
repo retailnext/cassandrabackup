@@ -1,4 +1,4 @@
-// Copyright 2019 RetailNext, Inc.
+// Copyright 2023 RetailNext, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build amd64,linux
+//go:build darwin && (amd64 || arm64)
 
 package paranoid
 
 import "syscall"
 
 type identity struct {
-	device uint64
+	device int32
 	inode  uint64
 }
 
@@ -29,5 +29,5 @@ func (id *identity) populate(stat *syscall.Stat_t) {
 }
 
 func MtimeFromStat(stat *syscall.Stat_t) syscall.Timespec {
-	return stat.Mtim
+	return stat.Mtimespec
 }
