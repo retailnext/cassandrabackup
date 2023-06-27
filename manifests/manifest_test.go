@@ -1,4 +1,4 @@
-// Copyright 2019 RetailNext, Inc.
+// Copyright 2023 RetailNext, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@ package manifests
 import (
 	"context"
 	"crypto/rand"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -29,7 +28,7 @@ import (
 )
 
 func TestManifest(t *testing.T) {
-	tempFile, err := ioutil.TempFile("", "")
+	tempFile, err := os.CreateTemp("", "")
 	if err != nil {
 		panic(err)
 	}
