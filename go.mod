@@ -3,7 +3,7 @@ module github.com/retailnext/cassandrabackup
 require (
 	github.com/aws/aws-sdk-go v1.34.10
 	github.com/go-test/deep v1.1.0
-	github.com/gocql/gocql v0.0.0-20201024154641-5913df4d474e
+	github.com/gocql/gocql v1.5.2
 	github.com/mailru/easyjson v0.7.6
 	github.com/prometheus/client_golang v1.11.1
 	github.com/retailnext/writefile v0.1.0
@@ -21,7 +21,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
-	github.com/golang/snappy v0.0.1 // indirect
+	github.com/golang/snappy v0.0.3 // indirect
 	github.com/hailocab/go-hostpool v0.0.0-20160125115350-e80d13ce29ed // indirect
 	github.com/jmespath/go-jmespath v0.3.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
