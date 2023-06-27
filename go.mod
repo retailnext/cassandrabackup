@@ -7,7 +7,7 @@ require (
 	github.com/mailru/easyjson v0.7.6
 	github.com/prometheus/client_golang v1.11.1
 	github.com/retailnext/writefile v0.1.0
-	go.etcd.io/bbolt v1.3.5
+	go.etcd.io/bbolt v1.3.7
 	go.uber.org/zap v1.16.0
 	golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
@@ -31,7 +31,7 @@ require (
 	go.uber.org/atomic v1.6.0 // indirect
 	go.uber.org/multierr v1.5.0 // indirect
 	golang.org/x/lint v0.0.0-20191125180803-fdd1cda4f05f // indirect
-	golang.org/x/sys v0.0.0-20210603081109-ebe580a85c40 // indirect
+	golang.org/x/sys v0.4.0 // indirect
 	golang.org/x/tools v0.0.0-20200114191411-189207f339b7 // indirect
 	google.golang.org/protobuf v1.26.0-rc.1 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
