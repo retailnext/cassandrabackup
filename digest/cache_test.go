@@ -1,4 +1,4 @@
-// Copyright 2019 RetailNext, Inc.
+// Copyright 2023 RetailNext, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@ package digest
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -26,7 +25,7 @@ import (
 )
 
 func TestCacheAWS(t *testing.T) {
-	dir, err := ioutil.TempDir("", "")
+	dir, err := os.MkdirTemp("", "")
 	if err != nil {
 		panic(err)
 	}
@@ -55,7 +54,7 @@ func TestCacheAWS(t *testing.T) {
 		f: &awsForUploadFactory{},
 	}
 
-	if err := ioutil.WriteFile(testFilePath, make([]byte, bigSize), 0644); err != nil {
+	if err := os.WriteFile(testFilePath, make([]byte, bigSize), 0644); err != nil {
 		panic(err)
 	}
 
