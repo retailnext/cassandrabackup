@@ -1,4 +1,4 @@
-// Copyright 2019 RetailNext, Inc.
+// Copyright 2023 RetailNext, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -248,8 +248,10 @@ func (u *fileUploader) uploadSinglePart(ctx context.Context) error {
 	return err
 }
 
-const md5Header = "Content-Md5"
-const sha256Header = "X-Amz-Content-Sha256"
+const (
+	md5Header    = "Content-Md5"
+	sha256Header = "X-Amz-Content-Sha256"
+)
 
 type UploadPartFailures map[int64]error
 

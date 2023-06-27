@@ -1,4 +1,4 @@
-// Copyright 2019 RetailNext, Inc.
+// Copyright 2023 RetailNext, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,8 +19,10 @@ import (
 	"encoding/binary"
 )
 
-const cacheKeyLen = 8          // inode
-const cacheValueHeaderLen = 24 // sec + nsec + size
+const (
+	cacheKeyLen         = 8  // inode
+	cacheValueHeaderLen = 24 // sec + nsec + size
+)
 
 func (f File) CacheKey() []byte {
 	var key [cacheKeyLen]byte

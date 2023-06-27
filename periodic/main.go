@@ -1,4 +1,4 @@
-// Copyright 2020 RetailNext, Inc.
+// Copyright 2023 RetailNext, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,8 +22,10 @@ import (
 	"go.uber.org/zap"
 )
 
-const snapshotEvery = 1 * time.Hour
-const incrementalEvery = 5 * time.Minute
+const (
+	snapshotEvery    = 1 * time.Hour
+	incrementalEvery = 5 * time.Minute
+)
 
 func Main(ctx context.Context) error {
 	registerMetrics()

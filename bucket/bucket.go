@@ -37,11 +37,13 @@ import (
 	"go.uber.org/zap"
 )
 
-const putJsonRetriesLimit = 3
-const getJsonRetriesLimit = 3
-const getBlobRetriesLimit = 3
-const listManifestsRetriesLimit = 3
-const retrySleepPerAttempt = time.Second
+const (
+	putJsonRetriesLimit       = 3
+	getJsonRetriesLimit       = 3
+	getBlobRetriesLimit       = 3
+	listManifestsRetriesLimit = 3
+	retrySleepPerAttempt      = time.Second
+)
 
 type Client interface {
 	ListManifests(ctx context.Context, identity manifests.NodeIdentity, startAfter, notAfter unixtime.Seconds) (manifests.ManifestKeys, error)
