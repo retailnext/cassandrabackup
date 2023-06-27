@@ -1,4 +1,4 @@
-// Copyright 2020 RetailNext, Inc.
+// Copyright 2023 RetailNext, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -73,8 +73,10 @@ func (u *awsForUpload) ForRestore() ForRestore {
 	}
 }
 
-const checkContextBytesInterval = 1024 * 1024 * 8
-const partSize = 1024 * 1024 * 64
+const (
+	checkContextBytesInterval = 1024 * 1024 * 8
+	partSize                  = 1024 * 1024 * 64
+)
 
 func makeHash(ctx context.Context, file paranoid.File, u ForUpload) (hash.Hash, error) {
 	osFile, err := file.Open()

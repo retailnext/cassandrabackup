@@ -38,7 +38,7 @@ func TestCacheAWS(t *testing.T) {
 	cachePath := filepath.Join(dir, "cache.db")
 	testFilePath := filepath.Join(dir, "bigfile")
 
-	storage, err := cache.Open(cachePath, 0644)
+	storage, err := cache.Open(cachePath, 0o644)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +54,7 @@ func TestCacheAWS(t *testing.T) {
 		f: &awsForUploadFactory{},
 	}
 
-	if err := os.WriteFile(testFilePath, make([]byte, bigSize), 0644); err != nil {
+	if err := os.WriteFile(testFilePath, make([]byte, bigSize), 0o644); err != nil {
 		panic(err)
 	}
 
@@ -89,7 +89,7 @@ func TestCacheAWS(t *testing.T) {
 		panic(closeErr)
 	}
 
-	storage, err = cache.Open(cachePath, 0644)
+	storage, err = cache.Open(cachePath, 0o644)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,4 +1,4 @@
-// Copyright 2019 RetailNext, Inc.
+// Copyright 2023 RetailNext, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -72,9 +72,11 @@ func (pd *PartDigests) PartContentSHA256(partNumber int64) string {
 	return pd.sha256Parts[i].String()
 }
 
-const headerLength = 16
-const partSizeOffset = 0
-const totalLengthOffset = 8
+const (
+	headerLength      = 16
+	partSizeOffset    = 0
+	totalLengthOffset = 8
+)
 
 func (pd *PartDigests) MarshalBinary() (data []byte, err error) {
 	output := make([]byte, headerLength+pd.md5Parts.size()+pd.sha256Parts.size())

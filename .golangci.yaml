@@ -1,0 +1,13 @@
+---
+linters:
+  enable:
+    - durationcheck
+    - errcheck
+    - gci
+    - gofumpt
+    - loggercheck
+    - mirror
+    - promlinter
+    - reassign
+    - unconvert
+    - usestdlibvars

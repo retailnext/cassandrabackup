@@ -1,4 +1,4 @@
-// Copyright 2019 RetailNext, Inc.
+// Copyright 2023 RetailNext, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,8 +23,6 @@ import (
 	"github.com/retailnext/cassandrabackup/unixtime"
 	"go.uber.org/zap"
 )
-
-var ()
 
 // GetIdentityAndManifestTemplateOffline reads the cassandra config file, system hostname, and overrides.
 // GetIdentityAndManifestTemplate should be used when cassandra is expected to be running.

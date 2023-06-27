@@ -95,7 +95,7 @@ func ensureFileOwnership(path string) {
 
 func OpenShared() {
 	once.Do(func() {
-		c, err := Open(*sharedCacheFile, 0644)
+		c, err := Open(*sharedCacheFile, 0o644)
 		if err != nil {
 			panic(err)
 		}
