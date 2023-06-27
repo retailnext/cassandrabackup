@@ -1,4 +1,4 @@
-// Copyright 2020 RetailNext, Inc.
+// Copyright 2023 RetailNext, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/alecthomas/kingpin/v2"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -34,7 +35,6 @@ import (
 	"github.com/retailnext/cassandrabackup/paranoid"
 	"github.com/retailnext/cassandrabackup/unixtime"
 	"go.uber.org/zap"
-	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 const putJsonRetriesLimit = 3

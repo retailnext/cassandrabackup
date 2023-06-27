@@ -21,6 +21,7 @@ import (
 	"os/signal"
 	"runtime/pprof"
 
+	"github.com/alecthomas/kingpin/v2"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/retailnext/cassandrabackup/backup"
 	"github.com/retailnext/cassandrabackup/bucket"
@@ -31,7 +32,6 @@ import (
 	"github.com/retailnext/cassandrabackup/unixtime"
 	"go.uber.org/zap"
 	"golang.org/x/term"
-	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 func setupLogger() func() {
