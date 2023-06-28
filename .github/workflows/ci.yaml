@@ -36,10 +36,19 @@ jobs:
         run: go mod download
       - name: Verify dependencies
         run: go mod verify
+      - name: Run Generators
+        run: go generate -v ./...
+      - name: Check for modified files
+        run: |
+          if [[ $(git status --porcelain) != '' ]]; then
+            git --no-pager diff
+            echo "run go generate ./... and commit changes"
+            exit 1
+          fi
       - name: Test
         run: go test -v ./...
       - name: Clean
-        run: | 
+        run: |
           git clean -ffdx
           git reset --hard HEAD
       - name: GoReleaser (Snapshot)
