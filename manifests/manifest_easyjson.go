@@ -4,7 +4,6 @@ package manifests
 
 import (
 	json "encoding/json"
-
 	easyjson "github.com/mailru/easyjson"
 	jlexer "github.com/mailru/easyjson/jlexer"
 	jwriter "github.com/mailru/easyjson/jwriter"
@@ -19,7 +18,7 @@ var (
 	_ easyjson.Marshaler
 )
 
-func easyjson4ef6ea8bDecodeCassandrabackupManifests(in *jlexer.Lexer, out *Manifest) {
+func easyjson4ef6ea8bDecodeGithubComRetailnextCassandrabackupManifests(in *jlexer.Lexer, out *Manifest) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -30,7 +29,7 @@ func easyjson4ef6ea8bDecodeCassandrabackupManifests(in *jlexer.Lexer, out *Manif
 	}
 	in.Delim('{')
 	for !in.IsDelim('}') {
-		key := in.UnsafeString()
+		key := in.UnsafeFieldName(false)
 		in.WantColon()
 		if in.IsNull() {
 			in.Skip()
@@ -76,11 +75,7 @@ func easyjson4ef6ea8bDecodeCassandrabackupManifests(in *jlexer.Lexer, out *Manif
 				in.Skip()
 			} else {
 				in.Delim('{')
-				if !in.IsDelim('}') {
-					out.DataFiles = make(map[string]digest.ForRestore)
-				} else {
-					out.DataFiles = nil
-				}
+				out.DataFiles = make(map[string]digest.ForRestore)
 				for !in.IsDelim('}') {
 					key := string(in.String())
 					in.WantColon()
@@ -92,7 +87,11 @@ func easyjson4ef6ea8bDecodeCassandrabackupManifests(in *jlexer.Lexer, out *Manif
 				in.Delim('}')
 			}
 		default:
-			in.SkipRecursive()
+			in.AddError(&jlexer.LexerError{
+				Offset: in.GetPos(),
+				Reason: "unknown field",
+				Data:   key,
+			})
 		}
 		in.WantComma()
 	}
@@ -101,68 +100,38 @@ func easyjson4ef6ea8bDecodeCassandrabackupManifests(in *jlexer.Lexer, out *Manif
 		in.Consumed()
 	}
 }
-func easyjson4ef6ea8bEncodeCassandrabackupManifests(out *jwriter.Writer, in Manifest) {
+func easyjson4ef6ea8bEncodeGithubComRetailnextCassandrabackupManifests(out *jwriter.Writer, in Manifest) {
 	out.RawByte('{')
 	first := true
 	_ = first
 	{
 		const prefix string = ",\"time\":"
-		if first {
-			first = false
-			out.RawString(prefix[1:])
-		} else {
-			out.RawString(prefix)
-		}
+		out.RawString(prefix[1:])
 		(in.Time).MarshalEasyJSON(out)
 	}
 	{
 		const prefix string = ",\"manifest_type\":"
-		if first {
-			first = false
-			out.RawString(prefix[1:])
-		} else {
-			out.RawString(prefix)
-		}
+		out.RawString(prefix)
 		out.Int(int(in.ManifestType))
 	}
 	{
 		const prefix string = ",\"host_id\":"
-		if first {
-			first = false
-			out.RawString(prefix[1:])
-		} else {
-			out.RawString(prefix)
-		}
+		out.RawString(prefix)
 		out.String(string(in.HostID))
 	}
 	{
 		const prefix string = ",\"address\":"
-		if first {
-			first = false
-			out.RawString(prefix[1:])
-		} else {
-			out.RawString(prefix)
-		}
+		out.RawString(prefix)
 		out.String(string(in.Address))
 	}
 	{
 		const prefix string = ",\"partitioner\":"
-		if first {
-			first = false
-			out.RawString(prefix[1:])
-		} else {
-			out.RawString(prefix)
-		}
+		out.RawString(prefix)
 		out.String(string(in.Partitioner))
 	}
 	{
 		const prefix string = ",\"tokens\":"
-		if first {
-			first = false
-			out.RawString(prefix[1:])
-		} else {
-			out.RawString(prefix)
-		}
+		out.RawString(prefix)
 		if in.Tokens == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
 			out.RawString("null")
 		} else {
@@ -178,12 +147,7 @@ func easyjson4ef6ea8bEncodeCassandrabackupManifests(out *jwriter.Writer, in Mani
 	}
 	{
 		const prefix string = ",\"data_files\":"
-		if first {
-			first = false
-			out.RawString(prefix[1:])
-		} else {
-			out.RawString(prefix)
-		}
+		out.RawString(prefix)
 		if in.DataFiles == nil && (out.Flags&jwriter.NilMapAsEmpty) == 0 {
 			out.RawString(`null`)
 		} else {
@@ -208,23 +172,23 @@ func easyjson4ef6ea8bEncodeCassandrabackupManifests(out *jwriter.Writer, in Mani
 // MarshalJSON supports json.Marshaler interface
 func (v Manifest) MarshalJSON() ([]byte, error) {
 	w := jwriter.Writer{}
-	easyjson4ef6ea8bEncodeCassandrabackupManifests(&w, v)
+	easyjson4ef6ea8bEncodeGithubComRetailnextCassandrabackupManifests(&w, v)
 	return w.Buffer.BuildBytes(), w.Error
 }
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v Manifest) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson4ef6ea8bEncodeCassandrabackupManifests(w, v)
+	easyjson4ef6ea8bEncodeGithubComRetailnextCassandrabackupManifests(w, v)
 }
 
 // UnmarshalJSON supports json.Unmarshaler interface
 func (v *Manifest) UnmarshalJSON(data []byte) error {
 	r := jlexer.Lexer{Data: data}
-	easyjson4ef6ea8bDecodeCassandrabackupManifests(&r, v)
+	easyjson4ef6ea8bDecodeGithubComRetailnextCassandrabackupManifests(&r, v)
 	return r.Error()
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *Manifest) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson4ef6ea8bDecodeCassandrabackupManifests(l, v)
+	easyjson4ef6ea8bDecodeGithubComRetailnextCassandrabackupManifests(l, v)
 }
