@@ -48,7 +48,7 @@ jobs:
       - name: Test
         run: go test -v ./...
       - name: Clean
-        run: | 
+        run: |
           git clean -ffdx
           git reset --hard HEAD
       - name: GoReleaser (Snapshot)
