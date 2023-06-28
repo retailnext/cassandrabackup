@@ -2,9 +2,20 @@
   "extends": [
     "config:base",
     ":automergeAll",
-    ":gitSignOff"
+    ":gitSignOff",
+    ":semanticCommits",
+    "regexManagers:githubActionsVersions"
   ],
+  "automerge": true,
+  "labels": [
+    "dependencies"
+  ],
+  "lockFileMaintenance": {
+    "enabled": true
+  },
+  "platformAutomerge": true,
   "postUpdateOptions": [
-    "gomodTidy"
+    "gomodTidy",
+    "gomodUpdateImportPaths"
   ]
 }
