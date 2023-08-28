@@ -4,7 +4,7 @@ require (
 	github.com/alecthomas/kingpin/v2 v2.3.2
 	github.com/aws/aws-sdk-go v1.44.332
 	github.com/go-test/deep v1.1.0
-	github.com/gocql/gocql v1.5.2
+	github.com/gocql/gocql v1.6.0
 	github.com/mailru/easyjson v0.7.7
 	github.com/prometheus/client_golang v1.16.0
 	github.com/retailnext/writefile v0.1.0
