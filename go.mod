@@ -8,7 +8,7 @@ require (
 	github.com/mailru/easyjson v0.7.7
 	github.com/prometheus/client_golang v1.17.0
 	github.com/retailnext/writefile v0.1.0
-	go.etcd.io/bbolt v1.3.7
+	go.etcd.io/bbolt v1.3.8
 	go.uber.org/zap v1.26.0
 	golang.org/x/crypto v0.14.0
 	golang.org/x/term v0.13.0
