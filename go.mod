@@ -2,7 +2,7 @@ module github.com/retailnext/cassandrabackup
 
 require (
 	github.com/alecthomas/kingpin/v2 v2.4.0
-	github.com/aws/aws-sdk-go v1.55.2
+	github.com/aws/aws-sdk-go v1.55.3
 	github.com/go-test/deep v1.1.1
 	github.com/gocql/gocql v1.6.0
 	github.com/mailru/easyjson v0.7.7
