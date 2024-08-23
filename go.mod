@@ -6,7 +6,7 @@ require (
 	github.com/go-test/deep v1.1.1
 	github.com/gocql/gocql v1.6.0
 	github.com/mailru/easyjson v0.7.7
-	github.com/prometheus/client_golang v1.20.1
+	github.com/prometheus/client_golang v1.20.2
 	github.com/retailnext/writefile v0.1.0
 	go.etcd.io/bbolt v1.3.11
 	go.uber.org/zap v1.27.0
