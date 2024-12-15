@@ -5,7 +5,7 @@ require (
 	github.com/aws/aws-sdk-go v1.55.5
 	github.com/go-test/deep v1.1.1
 	github.com/gocql/gocql v1.7.0
-	github.com/mailru/easyjson v0.7.7
+	github.com/mailru/easyjson v0.9.0
 	github.com/prometheus/client_golang v1.20.5
 	github.com/retailnext/writefile v0.1.0
 	go.etcd.io/bbolt v1.3.11
