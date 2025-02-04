@@ -37,4 +37,4 @@ require (
 
 go 1.22
 
-toolchain go1.23.5
+toolchain go1.23.6
