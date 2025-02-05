@@ -8,7 +8,7 @@ require (
 	github.com/mailru/easyjson v0.9.0
 	github.com/prometheus/client_golang v1.20.5
 	github.com/retailnext/writefile v0.1.0
-	go.etcd.io/bbolt v1.3.11
+	go.etcd.io/bbolt v1.4.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.32.0
 	golang.org/x/term v0.29.0
@@ -35,6 +35,6 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 )
 
-go 1.22
+go 1.23
 
 toolchain go1.23.6
