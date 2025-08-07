@@ -10,7 +10,7 @@ require (
 	github.com/retailnext/writefile v0.1.0
 	go.etcd.io/bbolt v1.4.2
 	go.uber.org/zap v1.27.0
-	golang.org/x/crypto v0.40.0
+	golang.org/x/crypto v0.41.0
 	golang.org/x/term v0.34.0
 	gopkg.in/yaml.v3 v3.0.1
 )
