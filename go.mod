@@ -9,7 +9,7 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/retailnext/writefile v0.1.0
 	go.etcd.io/bbolt v1.4.3
-	go.uber.org/zap v1.27.0
+	go.uber.org/zap v1.27.1
 	golang.org/x/crypto v0.44.0
 	golang.org/x/term v0.37.0
 	gopkg.in/yaml.v3 v3.0.1
