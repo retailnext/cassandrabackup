@@ -24,7 +24,7 @@ jobs:
     name: Go
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -68,12 +68,25 @@ jobs:
           name: cassandrabackup
           path: dist/*
           if-no-files-found: error
-      - name: Unshallow
-        if: startsWith(github.ref, 'refs/tags/')
-        run: git fetch --prune --unshallow
+
+  release:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [go]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+      - name: Set up Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        with:
+          go-version-file: 'go.mod'
       - name: GoReleaser (Release)
         uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29 # v7
-        if: startsWith(github.ref, 'refs/tags/')
         with:
           version: ${{ env.GORELEASER_VERSION }}
           args: release --clean
