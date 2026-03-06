@@ -20,7 +20,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/retailnext/cassandrabackup/digest"
 	"github.com/retailnext/cassandrabackup/paranoid"
@@ -70,7 +70,7 @@ func (c *awsClient) DownloadBlob(ctx context.Context, digests digest.ForRestore,
 		if err := file.Truncate(0); err != nil {
 			zap.S().Panicw("get_blob_truncate_error", "err", err)
 		}
-		_, err := c.downloader.DownloadWithContext(ctx, file, getObjectInput)
+		output, err := c.s3Svc.GetObject(ctx, getObjectInput)
 		if err != nil {
 			attempts++
 			if ctxErr := ctx.Err(); ctxErr != nil {
@@ -81,6 +81,16 @@ func (c *awsClient) DownloadBlob(ctx context.Context, digests digest.ForRestore,
 			}
 			zap.S().Errorw("get_blob_s3_error", "err", err, "attempts", attempts)
 		} else {
+			_, copyErr := io.Copy(file, output.Body)
+			_ = output.Body.Close()
+			if copyErr != nil {
+				attempts++
+				if attempts > getBlobRetriesLimit {
+					return copyErr
+				}
+				zap.S().Errorw("get_blob_copy_error", "err", copyErr, "attempts", attempts)
+				continue
+			}
 			return digests.Verify(ctx, file)
 		}
 	}
@@ -88,7 +98,7 @@ func (c *awsClient) DownloadBlob(ctx context.Context, digests digest.ForRestore,
 
 func (c *awsClient) blobExists(ctx context.Context, digests digest.ForUpload) (bool, error) {
 	key := c.keyStore.AbsoluteKeyForBlob(digests.ForRestore())
-	if c.existsCache.Get(digests.ForRestore()) {
+	if c.existsCache != nil && c.existsCache.Get(digests.ForRestore()) {
 		return true, nil
 	}
 
@@ -96,7 +106,7 @@ func (c *awsClient) blobExists(ctx context.Context, digests digest.ForUpload) (b
 		Bucket: &c.keyStore.bucket,
 		Key:    &key,
 	}
-	headObjectOutput, err := c.s3Svc.HeadObjectWithContext(ctx, headObjectInput)
+	headObjectOutput, err := c.s3Svc.HeadObject(ctx, headObjectInput)
 	if err != nil {
 		if IsNoSuchKey(err) {
 			return false, nil
@@ -117,7 +127,7 @@ func (c *awsClient) blobExists(ctx context.Context, digests digest.ForUpload) (b
 		return false, nil
 	}
 
-	if headObjectOutput.ObjectLockRetainUntilDate != nil {
+	if c.existsCache != nil && headObjectOutput.ObjectLockRetainUntilDate != nil {
 		c.existsCache.Put(digests.ForRestore(), *headObjectOutput.ObjectLockRetainUntilDate)
 	}
 

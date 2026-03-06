@@ -15,21 +15,23 @@
 package bucket
 
 import (
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"errors"
+
+	"github.com/aws/smithy-go"
 	"go.uber.org/zap"
 )
 
 func IsNoSuchKey(err error) bool {
 	if err != nil {
-		if awsErr, ok := err.(awserr.Error); ok {
-			switch awsErr.Code() {
-			case s3.ErrCodeNoSuchKey, "NotFound":
+		var apiErr smithy.APIError
+		if errors.As(err, &apiErr) {
+			switch apiErr.ErrorCode() {
+			case "NoSuchKey", "NotFound":
 				return true
 			case "RequestCanceled":
 				return false
 			default:
-				zap.S().Infow("other_aws_error", "code", awsErr.Code(), "error", awsErr.Error(), "message", awsErr.Message())
+				zap.S().Infow("other_aws_error", "code", apiErr.ErrorCode(), "error", apiErr.Error(), "message", apiErr.ErrorMessage())
 				return false
 			}
 		}

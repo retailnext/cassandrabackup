@@ -17,8 +17,8 @@ package bucket
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/retailnext/cassandrabackup/manifests"
 	"go.uber.org/zap"
 )
@@ -32,7 +32,15 @@ func (c *awsClient) ListHostNames(ctx context.Context, cluster string) ([]manife
 		Prefix:    &prefix,
 	}
 	var result []manifests.NodeIdentity
-	err := c.s3Svc.ListObjectsV2PagesWithContext(ctx, input, func(page *s3.ListObjectsV2Output, lastPage bool) bool {
+	continuationToken := (*string)(nil)
+	for {
+		if continuationToken != nil {
+			input.ContinuationToken = continuationToken
+		}
+		page, err := c.s3Svc.ListObjectsV2(ctx, input)
+		if err != nil {
+			return result, err
+		}
 		nodes, bonus := c.keyStore.decodeClusterHosts(page.CommonPrefixes)
 		if len(bonus) > 0 {
 			lgr.Warnw("unexpected_objects_in_bucket", "keys", bonus)
@@ -45,9 +53,13 @@ func (c *awsClient) ListHostNames(ctx context.Context, cluster string) ([]manife
 			}
 			lgr.Warnw("unexpected_objects_in_bucket", "keys", unexpected)
 		}
-		return true
-	})
-	return result, err
+		if page.IsTruncated != nil && *page.IsTruncated && page.NextContinuationToken != nil {
+			continuationToken = page.NextContinuationToken
+		} else {
+			break
+		}
+	}
+	return result, nil
 }
 
 func (c *awsClient) ListClusters(ctx context.Context) ([]string, error) {
@@ -59,7 +71,15 @@ func (c *awsClient) ListClusters(ctx context.Context) ([]string, error) {
 		Prefix:    &prefix,
 	}
 	var result []string
-	err := c.s3Svc.ListObjectsV2PagesWithContext(ctx, input, func(page *s3.ListObjectsV2Output, lastPage bool) bool {
+	continuationToken := (*string)(nil)
+	for {
+		if continuationToken != nil {
+			input.ContinuationToken = continuationToken
+		}
+		page, err := c.s3Svc.ListObjectsV2(ctx, input)
+		if err != nil {
+			return result, err
+		}
 		for _, obj := range page.CommonPrefixes {
 			cluster, err := c.keyStore.decodeCluster(*obj.Prefix)
 			if err != nil {
@@ -68,8 +88,11 @@ func (c *awsClient) ListClusters(ctx context.Context) ([]string, error) {
 				result = append(result, cluster)
 			}
 		}
-		// Continue to the next page
-		return page.NextContinuationToken != nil
-	})
-	return result, err
+		if page.IsTruncated != nil && *page.IsTruncated && page.NextContinuationToken != nil {
+			continuationToken = page.NextContinuationToken
+		} else {
+			break
+		}
+	}
+	return result, nil
 }

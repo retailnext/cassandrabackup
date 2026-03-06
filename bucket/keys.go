@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/retailnext/cassandrabackup/digest"
 	"github.com/retailnext/cassandrabackup/manifests"
 	"github.com/retailnext/cassandrabackup/unixtime"
@@ -94,7 +94,7 @@ func (c *KeyStore) decodeCluster(key string) (string, error) {
 	return string(cluster), err
 }
 
-func (c *KeyStore) decodeClusterHosts(prefixes []*s3.CommonPrefix) ([]manifests.NodeIdentity, []string) {
+func (c *KeyStore) decodeClusterHosts(prefixes []types.CommonPrefix) ([]manifests.NodeIdentity, []string) {
 	result := make([]manifests.NodeIdentity, 0, len(prefixes))
 	var bonus []string
 	skip := len(c.absoluteKeyPrefixForClusters())
