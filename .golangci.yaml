@@ -1,13 +1,23 @@
 ---
+version: "2"
+formatters:
+  enable:
+    - gci
+    - gofumpt
 linters:
   enable:
     - durationcheck
     - errcheck
-    - gci
-    - gofumpt
     - loggercheck
     - mirror
     - promlinter
     - reassign
     - unconvert
     - usestdlibvars
+  settings:
+    staticcheck:
+      checks:
+        - "all"
+        - "-SA1019"
+        - "-SA4011"
+        - "-ST*"
