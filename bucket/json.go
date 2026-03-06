@@ -20,8 +20,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/mailru/easyjson"
 	"go.uber.org/zap"
 )
@@ -41,12 +42,12 @@ func (c *awsClient) putDocument(ctx context.Context, absoluteKey string, v easyj
 		Key:                  &absoluteKey,
 		ContentType:          aws.String("application/json"),
 		ContentEncoding:      aws.String("gzip"),
-		ServerSideEncryption: c.serverSideEncryption,
+		ServerSideEncryption: types.ServerSideEncryption(*c.serverSideEncryption),
 		Body:                 bytes.NewReader(encodeBuffer.Bytes()),
 	}
 	attempts := 0
 	for {
-		_, err := c.s3Svc.PutObjectWithContext(ctx, putObjectInput)
+		_, err := c.s3Svc.PutObject(ctx, putObjectInput)
 		if err != nil {
 			attempts++
 			if ctxErr := ctx.Err(); ctxErr != nil {
@@ -70,7 +71,7 @@ func (c *awsClient) getDocument(ctx context.Context, absoluteKey string, v easyj
 	}
 	attempts := 0
 	for {
-		getObjectOutput, err := c.s3Svc.GetObjectWithContext(ctx, getObjectInput)
+		getObjectOutput, err := c.s3Svc.GetObject(ctx, getObjectInput)
 		if err != nil {
 			if IsNoSuchKey(err) {
 				return err

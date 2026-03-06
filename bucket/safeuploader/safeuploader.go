@@ -21,17 +21,16 @@ import (
 	"os"
 	"sync"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/retailnext/cassandrabackup/digest"
 	"github.com/retailnext/cassandrabackup/paranoid"
 	"go.uber.org/zap"
 )
 
 type SafeUploader struct {
-	S3                   s3iface.S3API
+	S3                   S3API
 	Bucket               string
 	ServerSideEncryption *string
 	StorageClass         *string
@@ -56,7 +55,7 @@ func (u *SafeUploader) UploadFile(ctx context.Context, key string, file paranoid
 }
 
 type fileUploader struct {
-	s3Svc s3iface.S3API
+	s3Svc S3API
 
 	bucket               string
 	key                  string
@@ -99,14 +98,14 @@ func (u *fileUploader) Upload(ctx context.Context) error {
 	createMultipartUploadInput := s3.CreateMultipartUploadInput{
 		Bucket:               &u.bucket,
 		Key:                  &u.key,
-		ServerSideEncryption: u.serverSideEncryption,
-		StorageClass:         u.storageClass,
+		ServerSideEncryption: sseType(u.serverSideEncryption),
+		StorageClass:         storageClassType(u.storageClass),
 	}
 	u.ctx, u.ctxCancel = context.WithCancel(ctx)
 
 	var err error
 	var createMultipartUploadOutput *s3.CreateMultipartUploadOutput
-	createMultipartUploadOutput, err = u.s3Svc.CreateMultipartUploadWithContext(u.ctx, &createMultipartUploadInput)
+	createMultipartUploadOutput, err = u.s3Svc.CreateMultipartUpload(u.ctx, &createMultipartUploadInput)
 	if err != nil {
 		return err
 	}
@@ -140,7 +139,7 @@ func (u *fileUploader) tryToComplete() error {
 	u.lock.Lock()
 	defer u.lock.Unlock()
 
-	var parts []*s3.CompletedPart
+	var parts []types.CompletedPart
 	var partNumber int64
 	for partNumber = 1; partNumber <= u.digests.PartDigests().Parts(); partNumber++ {
 		etag, etagOk := u.etags[partNumber]
@@ -152,8 +151,8 @@ func (u *fileUploader) tryToComplete() error {
 			}
 			continue
 		}
-		part := &s3.CompletedPart{
-			PartNumber: aws.Int64(partNumber),
+		part := types.CompletedPart{
+			PartNumber: aws.Int32(int32(partNumber)),
 			ETag:       aws.String(etag),
 		}
 		parts = append(parts, part)
@@ -167,11 +166,11 @@ func (u *fileUploader) tryToComplete() error {
 		Bucket:   &u.bucket,
 		Key:      &u.key,
 		UploadId: &u.uploadId,
-		MultipartUpload: &s3.CompletedMultipartUpload{
+		MultipartUpload: &types.CompletedMultipartUpload{
 			Parts: parts,
 		},
 	}
-	_, err := u.s3Svc.CompleteMultipartUpload(completeMultipartUploadInput)
+	_, err := u.s3Svc.CompleteMultipartUpload(u.ctx, completeMultipartUploadInput)
 	return err
 }
 
@@ -182,7 +181,7 @@ func (u *fileUploader) abort() {
 		Key:      &u.key,
 		UploadId: &u.uploadId,
 	}
-	_, err := u.s3Svc.AbortMultipartUpload(&input)
+	_, err := u.s3Svc.AbortMultipartUpload(context.Background(), &input)
 	if err != nil {
 		lgr.Errorw("abort_multipart_upload_error", "key", u.key, "err", err)
 	} else {
@@ -210,18 +209,17 @@ func (u *fileUploader) uploadPart(partNumber int64) {
 	reader := io.NewSectionReader(u.osFile, offset, length)
 
 	uploadPartInput := &s3.UploadPartInput{
-		Bucket:        &u.bucket,
-		Key:           &u.key,
-		UploadId:      &u.uploadId,
-		PartNumber:    &partNumber,
-		ContentLength: &length,
-		Body:          reader,
+		Bucket:         &u.bucket,
+		Key:            &u.key,
+		UploadId:       &u.uploadId,
+		PartNumber:     aws.Int32(int32(partNumber)),
+		ContentLength:  &length,
+		ContentMD5:     aws.String(pd.PartContentMD5(partNumber)),
+		ChecksumSHA256: aws.String(pd.PartContentSHA256(partNumber)),
+		Body:           reader,
 	}
 	var uploadPartOutput *s3.UploadPartOutput
-	uploadPartOutput, err = u.s3Svc.UploadPartWithContext(u.ctx, uploadPartInput, func(request *request.Request) {
-		request.HTTPRequest.Header.Set(md5Header, pd.PartContentMD5(partNumber))
-		request.HTTPRequest.Header.Set(sha256Header, pd.PartContentSHA256(partNumber))
-	})
+	uploadPartOutput, err = u.s3Svc.UploadPart(u.ctx, uploadPartInput)
 	if err != nil {
 		return
 	}
@@ -237,21 +235,29 @@ func (u *fileUploader) uploadSinglePart(ctx context.Context) error {
 		Bucket:               &u.bucket,
 		Key:                  &u.key,
 		ContentLength:        aws.Int64(pd.PartLength(1)),
-		ServerSideEncryption: u.serverSideEncryption,
-		StorageClass:         u.storageClass,
+		ServerSideEncryption: sseType(u.serverSideEncryption),
+		StorageClass:         storageClassType(u.storageClass),
+		ContentMD5:           aws.String(pd.PartContentMD5(1)),
+		ChecksumSHA256:       aws.String(pd.PartContentSHA256(1)),
 		Body:                 u.osFile,
 	}
-	_, err := u.s3Svc.PutObjectWithContext(ctx, &putObjectInput, func(i *request.Request) {
-		i.HTTPRequest.Header.Set(md5Header, pd.PartContentMD5(1))
-		i.HTTPRequest.Header.Set(sha256Header, pd.PartContentSHA256(1))
-	})
+	_, err := u.s3Svc.PutObject(ctx, &putObjectInput)
 	return err
 }
 
-const (
-	md5Header    = "Content-Md5"
-	sha256Header = "X-Amz-Content-Sha256"
-)
+func sseType(s *string) types.ServerSideEncryption {
+	if s == nil {
+		return ""
+	}
+	return types.ServerSideEncryption(*s)
+}
+
+func storageClassType(s *string) types.StorageClass {
+	if s == nil {
+		return ""
+	}
+	return types.StorageClass(*s)
+}
 
 type UploadPartFailures map[int64]error
 

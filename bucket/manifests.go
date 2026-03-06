@@ -18,8 +18,8 @@ import (
 	"context"
 	"path/filepath"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/retailnext/cassandrabackup/manifests"
 	"github.com/retailnext/cassandrabackup/unixtime"
 	"go.uber.org/zap"
@@ -43,8 +43,19 @@ func (c *awsClient) ListManifests(ctx context.Context, identity manifests.NodeId
 	attempts := 0
 	for {
 		var keys manifests.ManifestKeys
-		err := c.s3Svc.ListObjectsV2PagesWithContext(ctx, input, func(output *s3.ListObjectsV2Output, b bool) bool {
-			var done bool
+		var listErr error
+		var done bool
+
+		continuationToken := (*string)(nil)
+		for !done {
+			if continuationToken != nil {
+				input.ContinuationToken = continuationToken
+			}
+			output, err := c.s3Svc.ListObjectsV2(ctx, input)
+			if err != nil {
+				listErr = err
+				break
+			}
 			for _, commonPrefix := range output.CommonPrefixes {
 				lgr.Debugw("list_manifests_saw_common_prefix", "prefix", commonPrefix.Prefix)
 			}
@@ -62,17 +73,22 @@ func (c *awsClient) ListManifests(ctx context.Context, identity manifests.NodeId
 					}
 				}
 			}
-			return !done
-		})
-		if err != nil {
+			if output.IsTruncated != nil && *output.IsTruncated && output.NextContinuationToken != nil {
+				continuationToken = output.NextContinuationToken
+			} else {
+				done = true
+			}
+		}
+
+		if listErr != nil {
 			attempts++
 			if ctxErr := ctx.Err(); ctxErr != nil {
 				return nil, ctxErr
 			}
-			if IsNoSuchKey(err) || attempts > listManifestsRetriesLimit {
-				return nil, err
+			if IsNoSuchKey(listErr) || attempts > listManifestsRetriesLimit {
+				return nil, listErr
 			}
-			lgr.Errorw("list_manifests_s3_error", "err", err, "attempts", attempts)
+			lgr.Errorw("list_manifests_s3_error", "err", listErr, "attempts", attempts)
 		} else {
 			return keys, nil
 		}
