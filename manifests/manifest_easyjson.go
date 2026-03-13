@@ -31,22 +31,37 @@ func easyjson4ef6ea8bDecodeGithubComRetailnextCassandrabackupManifests(in *jlexe
 	for !in.IsDelim('}') {
 		key := in.UnsafeFieldName(false)
 		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
 		switch key {
 		case "time":
-			(out.Time).UnmarshalEasyJSON(in)
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				(out.Time).UnmarshalEasyJSON(in)
+			}
 		case "manifest_type":
-			out.ManifestType = ManifestType(in.Int())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.ManifestType = ManifestType(in.Int())
+			}
 		case "host_id":
-			out.HostID = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.HostID = string(in.String())
+			}
 		case "address":
-			out.Address = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Address = string(in.String())
+			}
 		case "partitioner":
-			out.Partitioner = string(in.String())
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Partitioner = string(in.String())
+			}
 		case "tokens":
 			if in.IsNull() {
 				in.Skip()
@@ -64,7 +79,11 @@ func easyjson4ef6ea8bDecodeGithubComRetailnextCassandrabackupManifests(in *jlexe
 				}
 				for !in.IsDelim(']') {
 					var v1 string
-					v1 = string(in.String())
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						v1 = string(in.String())
+					}
 					out.Tokens = append(out.Tokens, v1)
 					in.WantComma()
 				}
@@ -80,7 +99,11 @@ func easyjson4ef6ea8bDecodeGithubComRetailnextCassandrabackupManifests(in *jlexe
 					key := string(in.String())
 					in.WantColon()
 					var v2 digest.ForRestore
-					(v2).UnmarshalEasyJSON(in)
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						(v2).UnmarshalEasyJSON(in)
+					}
 					(out.DataFiles)[key] = v2
 					in.WantComma()
 				}
