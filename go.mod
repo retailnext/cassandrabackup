@@ -6,7 +6,7 @@ require (
 	github.com/aws/aws-sdk-go v1.55.8
 	github.com/go-test/deep v1.1.1
 	github.com/mailru/easyjson v0.9.2
-	github.com/prometheus/client_golang v1.24.0
+	github.com/prometheus/client_golang v1.24.1
 	github.com/retailnext/writefile v0.1.0
 	go.etcd.io/bbolt v1.5.0
 	go.uber.org/zap v1.28.0
@@ -23,7 +23,7 @@ require (
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
-	github.com/prometheus/common v0.70.0 // indirect
+	github.com/prometheus/common v0.70.1 // indirect
 	github.com/prometheus/procfs v0.21.1 // indirect
 	github.com/xhit/go-str2duration/v2 v2.1.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
